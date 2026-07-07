@@ -14,7 +14,7 @@ fi
 cd "$TERRAFORM_DIR"
 terraform init
 
-terraform apply \
+terraform apply -auto-approve \
   -target=module.workshop.google_project_service.required \
   -target=module.workshop.google_artifact_registry_repository.main \
   -target=module.workshop.google_iam_workload_identity_pool.github \

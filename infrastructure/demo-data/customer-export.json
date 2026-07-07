@@ -1,0 +1,32 @@
+{
+  "_warning": "SYNTHETIC DATA — Jay's Surf Shop security workshop only. Not real customer records.",
+  "export_id": "jss-cust-export-2026-demo",
+  "exported_at": "2026-01-15T08:00:00Z",
+  "record_count": 3,
+  "records": [
+    {
+      "customer_id": "CUST-10042",
+      "name": "Alex Rivera",
+      "email": "alex.rivera@example.com",
+      "phone": "+1-714-555-0142",
+      "payment_last4": "4242",
+      "orders": ["ORD-8821", "ORD-9103"]
+    },
+    {
+      "customer_id": "CUST-10087",
+      "name": "Jordan Lee",
+      "email": "jordan.lee@example.com",
+      "phone": "+1-714-555-0187",
+      "payment_last4": "1111",
+      "orders": ["ORD-9204"]
+    },
+    {
+      "customer_id": "CUST-10112",
+      "name": "Sam Nguyen",
+      "email": "sam.nguyen@example.com",
+      "phone": "+1-714-555-0112",
+      "payment_last4": "0005",
+      "orders": ["ORD-9340", "ORD-9341", "ORD-9342"]
+    }
+  ]
+}

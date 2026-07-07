@@ -1,0 +1,8 @@
+project_id   = "your-gcp-project-id"
+region       = "us-central1"
+project_name = "jays-surf-shop"
+environment  = "demo"
+
+# openai_api_key = "sk-..."
+
+# github_deploy_repo = "AstralJays/JaysSurfShop-GCP"

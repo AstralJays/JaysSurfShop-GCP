@@ -1,0 +1,117 @@
+{
+  "categories": [
+    { "id": "surfboards", "name": "Surfboards", "description": "Hand-shaped and performance boards for every wave" },
+    { "id": "wax", "name": "Surf Wax", "description": "Sticky wax for warm and cold water sessions" },
+    { "id": "wetsuits", "name": "Wetsuits", "description": "Premium neoprene for comfort in any temperature" }
+  ],
+  "products": [
+    {
+      "id": "board-pipeline-pro",
+      "name": "Pipeline Pro Shortboard",
+      "category": "surfboards",
+      "price": 749.99,
+      "description": "High-performance 6'2\" shortboard with carbon rails. Ideal for punchy beach breaks.",
+      "image": "/images/products/shortboard.jpg",
+      "specs": { "length": "6'2\"", "volume": "28L", "finSetup": "thruster" }
+    },
+    {
+      "id": "board-malia-fun",
+      "name": "Malibu Funboard",
+      "category": "surfboards",
+      "price": 599.99,
+      "description": "Forgiving 7'6\" funboard perfect for small waves and progression.",
+      "image": "/images/products/funboard.jpg",
+      "specs": { "length": "7'6\"", "volume": "52L", "finSetup": "2+1" }
+    },
+    {
+      "id": "board-longboard-classic",
+      "name": "Classic Longboard",
+      "category": "surfboards",
+      "price": 899.99,
+      "description": "9'0\" nose rider with single fin. Glide and style for mellow point breaks.",
+      "image": "/images/products/longboard.jpg",
+      "specs": { "length": "9'0\"", "volume": "72L", "finSetup": "single" }
+    },
+    {
+      "id": "board-fish-twin",
+      "name": "Retro Fish Twin",
+      "category": "surfboards",
+      "price": 649.99,
+      "description": "5'8\" twin fin fish for speed in mushy summer swells.",
+      "image": "/images/products/fish.jpg",
+      "specs": { "length": "5'8\"", "volume": "32L", "finSetup": "twin" }
+    },
+    {
+      "id": "wax-tropical",
+      "name": "Tropical Grip Wax",
+      "category": "wax",
+      "price": 4.99,
+      "description": "Extra sticky base coat for water 75°F and above.",
+      "image": "/images/products/wax-tropical.jpg",
+      "specs": { "tempRange": "75°F+", "type": "base" }
+    },
+    {
+      "id": "wax-warm",
+      "name": "Warm Water Wax",
+      "category": "wax",
+      "price": 3.99,
+      "description": "Top coat wax for 64–74°F water. Coconut scent.",
+      "image": "/images/products/wax-warm.jpg",
+      "specs": { "tempRange": "64–74°F", "type": "top" }
+    },
+    {
+      "id": "wax-cool",
+      "name": "Cool Water Wax",
+      "category": "wax",
+      "price": 3.99,
+      "description": "Soft formula for 58–68°F. Won't slip when the lineup cools off.",
+      "image": "/images/products/wax-cool.jpg",
+      "specs": { "tempRange": "58–68°F", "type": "top" }
+    },
+    {
+      "id": "wax-cold",
+      "name": "Cold Water Wax",
+      "category": "wax",
+      "price": 4.49,
+      "description": "Ultra-soft for below 60°F. Stays tacky in winter sessions.",
+      "image": "/images/products/wax-cold.jpg",
+      "specs": { "tempRange": "below 60°F", "type": "top" }
+    },
+    {
+      "id": "wetsuit-32-full",
+      "name": "3/2mm Full Suit",
+      "category": "wetsuits",
+      "price": 189.99,
+      "description": "All-season full suit with taped seams and chest zip. 58–65°F.",
+      "image": "/images/products/wetsuit-32.jpg",
+      "specs": { "thickness": "3/2mm", "style": "full", "zip": "chest" }
+    },
+    {
+      "id": "wetsuit-43-hooded",
+      "name": "4/3mm Hooded Steamer",
+      "category": "wetsuits",
+      "price": 279.99,
+      "description": "Hooded steamer for cold water. Thermal lining, sealed cuffs.",
+      "image": "/images/products/wetsuit-43.jpg",
+      "specs": { "thickness": "4/3mm", "style": "hooded full", "zip": "back" }
+    },
+    {
+      "id": "wetsuit-spring-short",
+      "name": "2mm Spring Suit",
+      "category": "wetsuits",
+      "price": 129.99,
+      "description": "Shorty spring suit for warm water. Freedom of movement.",
+      "image": "/images/products/wetsuit-spring.jpg",
+      "specs": { "thickness": "2mm", "style": "shorty", "zip": "back" }
+    },
+    {
+      "id": "wetsuit-54-cold",
+      "name": "5/4mm Cold Water Suit",
+      "category": "wetsuits",
+      "price": 329.99,
+      "description": "Maximum warmth for sub-50°F. Double-lined hood compatible.",
+      "image": "/images/products/wetsuit-54.jpg",
+      "specs": { "thickness": "5/4mm", "style": "full", "zip": "chest" }
+    }
+  ]
+}

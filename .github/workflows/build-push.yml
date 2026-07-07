@@ -1,0 +1,53 @@
+name: Build and Push Images
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+env:
+  GCP_REGION: us-central1
+  NAME_PREFIX: jays-surf-shop-demo
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-push:
+    name: Push ${{ matrix.service }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: frontend
+            context: frontend
+          - service: chat-rag
+            context: services/chat-rag
+          - service: board-generator
+            context: services/board-generator
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push
+        env:
+          REGISTRY: ${{ secrets.GCP_ARTIFACT_REGISTRY_HOST }}
+        run: |
+          IMAGE="${REGISTRY}/${{ env.NAME_PREFIX }}/${{ matrix.service }}:${{ github.sha }}"
+          docker build -t "$IMAGE" \
+            -t "${REGISTRY}/${{ env.NAME_PREFIX }}/${{ matrix.service }}:latest" \
+            "./${{ matrix.context }}"
+          docker push "$IMAGE"
+          docker push "${REGISTRY}/${{ env.NAME_PREFIX }}/${{ matrix.service }}:latest"

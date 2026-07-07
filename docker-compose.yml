@@ -1,0 +1,38 @@
+services:
+  chat-rag:
+    build: ./services/chat-rag
+    ports:
+      - "8001:8001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./services/chat-rag/data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  board-generator:
+    build: ./services/board-generator
+    ports:
+      - "8002:8002"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./services/board-generator/generated:/app/generated
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - CHAT_SERVICE_URL=http://chat-rag:8001
+      - BOARD_SERVICE_URL=http://board-generator:8002
+      - NEXT_PUBLIC_CHAT_SERVICE_URL=http://localhost:8001
+      - NEXT_PUBLIC_BOARD_SERVICE_URL=http://localhost:8002
+    depends_on:
+      - chat-rag
+      - board-generator

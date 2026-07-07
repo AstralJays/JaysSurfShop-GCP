@@ -1,7 +1,7 @@
 resource "google_iam_workload_identity_pool" "github" {
   project                   = var.project_id
-  workload_identity_pool_id = "${replace(local.name_prefix, "-", "")}-github"
-  display_name              = "${local.name_prefix} GitHub Actions"
+  workload_identity_pool_id = "${local.compact_name}-github"
+  display_name              = "${local.compact_name} GitHub"
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
@@ -25,13 +25,13 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 
 resource "google_service_account" "github_deploy" {
   project      = var.project_id
-  account_id   = "${replace(local.name_prefix, "-", "")}-gh-deploy"
+  account_id   = "${local.compact_name}-gh-deploy"
   display_name = "${local.name_prefix} GitHub deploy"
 }
 
 resource "google_service_account" "github_scan" {
   project      = var.project_id
-  account_id   = "${replace(local.name_prefix, "-", "")}-gh-scan"
+  account_id   = "${local.compact_name}-gh-scan"
   display_name = "${local.name_prefix} GitHub scan"
 }
 

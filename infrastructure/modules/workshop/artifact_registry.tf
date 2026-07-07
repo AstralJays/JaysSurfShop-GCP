@@ -1,7 +1,7 @@
 resource "google_artifact_registry_repository" "main" {
   project       = var.project_id
   location      = var.region
-  repository_id = replace(local.name_prefix, "-", "_")
+  repository_id = local.compact_name
   format        = "DOCKER"
   description   = "Jay's Surf Shop workshop images"
 

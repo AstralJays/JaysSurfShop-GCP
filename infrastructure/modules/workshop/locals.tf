@@ -1,5 +1,6 @@
 locals {
-  name_prefix = "${var.project_name}-${var.environment}"
+  name_prefix  = "${var.project_name}-${var.environment}"
+  compact_name = replace(local.name_prefix, "-", "")
 
   common_labels = {
     project        = var.project_name

@@ -23,8 +23,8 @@ interface PostureData {
   };
   findings: {
     exploit_lab_enabled: boolean;
-    aws_runtime: boolean;
-    lambda_enabled: boolean;
+    gcp_runtime: boolean;
+    function_enabled: boolean;
     eicar_present: boolean;
     is_local: boolean;
     cspm_misconfigurations: Array<{
@@ -115,7 +115,7 @@ function PocCard({
       </div>
       {blocked && (
         <p className="text-xs text-ocean-400 mt-2">
-          Unavailable in this environment (requires AWS, Lambda, or vulnerable image).
+          Unavailable in this environment (requires GCP runtime, Cloud Function, or vulnerable image).
         </p>
       )}
       {result && (
@@ -335,9 +335,10 @@ export default function SecurityPage() {
         <div className="mb-4 rounded-lg bg-ocean-50 px-4 py-3 text-xs text-ocean-700">
           <span className="font-semibold text-ocean-900">Suggested kill chain: </span>
           {activeTab === "container-runtime" &&
-            "Pillow RCE → Fargate metadata creds → (switch to Cloud XDR) IAM abuse + S3 exfil"}
-          {activeTab === "cloud-xdr" && "Run after container compromise — IAM API abuse then S3 object probe"}
-          {activeTab === "malware" && "EICAR file in container + Lambda EICAR/YAML for scanner vs runtime"}
+            "Pillow RCE → metadata token theft (T1552) → switch to Cloud XDR for impersonation / key theft"}
+          {activeTab === "cloud-xdr" &&
+            "SA impersonation (T1550) or key theft (T1552) → Secret Manager / GCS access → optional VM+actAs graph"}
+          {activeTab === "malware" && "EICAR file in container + Cloud Function EICAR/YAML for scanner vs runtime"}
           {activeTab === "ai" && "Unauthenticated chat for AI SPM logs, then reindex for admin abuse"}
         </div>
 

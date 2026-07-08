@@ -8,4 +8,4 @@ rm -rf "$PKG"
 mkdir -p "$PKG"
 
 cp "$ROOT/main.py" "$ROOT/requirements.txt" "$PKG/"
-pip install -r "$ROOT/requirements.txt" -t "$PKG" --quiet
+python3 -m pip install -r "$ROOT/requirements.txt" -t "$PKG" --quiet

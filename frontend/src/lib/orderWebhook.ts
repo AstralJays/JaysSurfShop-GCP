@@ -7,7 +7,7 @@ export async function proxyOrderWebhook(
 ): Promise<Response> {
   if (!ORDER_WEBHOOK_URL) {
     return new Response(
-      JSON.stringify({ detail: "ORDER_WEBHOOK_URL not configured (AWS deploy only)" }),
+      JSON.stringify({ detail: "ORDER_WEBHOOK_URL not configured (GCP deploy only)" }),
       { status: 503, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -26,7 +26,7 @@ export async function proxyOrderWebhook(
 export interface OrderWebhookStatus {
   service?: string;
   status?: string;
-  aws_runtime?: boolean;
+  gcp_runtime?: boolean;
   eicar_present?: boolean;
   pyyaml_version?: string | null;
   vulnerable_packages?: Array<{

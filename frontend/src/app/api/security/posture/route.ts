@@ -2,11 +2,18 @@ import { NextResponse } from "next/server";
 import { proxyChat } from "@/lib/demoLab";
 import { ORDER_WEBHOOK_URL, proxyOrderWebhook, type OrderWebhookStatus } from "@/lib/orderWebhook";
 
+function detectCompute(): string {
+  if (process.env.KUBERNETES_SERVICE_HOST) return "gke";
+  if (process.env.K_SERVICE) return "cloud-run";
+  if (process.env.GCP_REGION) return "gcp";
+  return "container";
+}
+
 const BASE = {
   application: "jays-surf-shop",
   environment: process.env.NEXT_PUBLIC_APP_ENV || process.env.ENVIRONMENT || "local",
   deployment_id: process.env.DEPLOYMENT_ID || "local",
-  compute: process.env.AWS_EXECUTION_ENV ? "aws-ecs-fargate" : "container",
+  compute: detectCompute(),
   attack_surface: {
     public: [
       { path: "/", note: "Shop catalog" },
@@ -14,7 +21,7 @@ const BASE = {
       { path: "/design", note: "Create-A-Board UI" },
       { path: "/api/chat", note: "Unauthenticated → OpenAI" },
       { path: "/api/board", note: "Unauthenticated → image gen" },
-      { path: "/api/checkout", note: "Cart checkout → order webhook Lambda" },
+      { path: "/api/checkout", note: "Cart checkout → order webhook Cloud Function" },
       { path: "/api/security/posture", note: "Posture metadata" },
       { path: "/api/security/demo/*", note: "PoC proxy" },
     ],
@@ -25,25 +32,28 @@ const BASE = {
       { path: "board-generator:8002/generate", note: "DALL·E / gpt-image" },
     ],
     external: ["openai-api"],
-    secrets: ["openai-api-key (Secrets Manager on AWS)"],
+    secrets: ["openai-api-key (Secret Manager on GCP)"],
   },
 };
 
 interface DemoStatus {
-  aws_runtime?: boolean;
+  gcp_runtime?: boolean;
   pillow_installed?: string | null;
 }
 
 function buildFindings(
   env: string,
   demo: DemoStatus,
-  lambda: OrderWebhookStatus | null,
+  orderWebhook: OrderWebhookStatus | null,
   orderWebhookConfigured: boolean
 ) {
-  const aws = demo.aws_runtime === true || lambda?.aws_runtime === true;
+  const gcp =
+    demo.gcp_runtime === true ||
+    orderWebhook?.gcp_runtime === true ||
+    Boolean(process.env.GCP_REGION || process.env.KUBERNETES_SERVICE_HOST);
   const local = env === "local" || env === "demo-local";
   const pillow = demo.pillow_installed ?? null;
-  const pyyaml = lambda?.pyyaml_version ?? null;
+  const pyyaml = orderWebhook?.pyyaml_version ?? null;
 
   const cves = [];
   if (pillow) {
@@ -71,11 +81,11 @@ function buildFindings(
   if (orderWebhookConfigured) {
     attackSurfacePublic.push({
       path: ORDER_WEBHOOK_URL,
-      note: "Public execute-api endpoint — no auth, no API key (CSPM finding)",
+      note: "Public Cloud Function HTTPS URL — no auth, ingress ALLOW_ALL (CSPM finding)",
     });
     attackSurfacePublic.push({
       path: `${ORDER_WEBHOOK_URL}/checkout`,
-      note: "Unauthenticated checkout → order webhook Lambda",
+      note: "Unauthenticated checkout → order webhook Cloud Function",
     });
     attackSurfacePublic.push({
       path: `${ORDER_WEBHOOK_URL}/demo/eicar`,
@@ -89,53 +99,73 @@ function buildFindings(
 
   return {
     exploit_lab_enabled: true,
-    aws_runtime: aws,
-    lambda_enabled: orderWebhookConfigured && (lambda?.aws_runtime ?? aws),
+    gcp_runtime: gcp,
+    function_enabled: orderWebhookConfigured && (orderWebhook?.gcp_runtime ?? gcp),
     is_local: local,
-    eicar_present: lambda?.eicar_present === true,
+    eicar_present: orderWebhook?.eicar_present === true,
     cspm_misconfigurations: [
       {
-        id: "public-s3",
-        finding: "Public S3 bucket with synthetic customer export",
+        id: "public-gcs",
+        finding: "Public GCS bucket with synthetic customer export",
         severity: "Critical",
-        active: aws,
+        active: gcp,
         trigger: "Terraform (always deployed)",
       },
       {
-        id: "iam-wildcard",
-        finding: "ECS task role: s3:*, iam:*, secretsmanager:* on *",
+        id: "sa-editor",
+        finding: "GKE workload SA bound to roles/editor (metadata token → full project access)",
         severity: "Critical",
-        active: aws,
+        active: gcp,
         trigger: "Terraform (always deployed)",
       },
       {
-        id: "ssh-sg",
-        finding: "SSH (22) open to 0.0.0.0/0 on ECS security group",
+        id: "sa-impersonation-chain",
+        finding: "Dev SA has serviceAccountTokenCreator on production SA",
+        severity: "Critical",
+        active: gcp,
+        trigger: "Terraform (identity workshop)",
+      },
+      {
+        id: "sa-key-leak",
+        finding: "Long-lived dev SA key embedded in container / CI artifacts bucket",
+        severity: "Critical",
+        active: gcp,
+        trigger: "Terraform (identity workshop)",
+      },
+      {
+        id: "vm-actas-escalation",
+        finding: "Dev SA has compute.instanceAdmin + iam.serviceAccounts.actAs on prod SA",
         severity: "High",
-        active: aws,
+        active: gcp,
+        trigger: "Terraform (identity workshop)",
+      },
+      {
+        id: "ssh-firewall",
+        finding: "SSH (22) open to 0.0.0.0/0 on VPC firewall",
+        severity: "High",
+        active: gcp,
         trigger: "Terraform (always deployed)",
       },
       {
-        id: "public-api-gateway",
-        finding:
-          "Public API Gateway execute-api URL with no authorizer, no API key, and CORS *",
+        id: "public-cloud-function",
+        finding: "Cloud Function order-webhook invokable by allUsers with ALLOW_ALL ingress",
         severity: "Critical",
-        active: orderWebhookConfigured && aws,
+        active: orderWebhookConfigured && gcp,
         trigger: "Terraform (always deployed)",
       },
       {
-        id: "lambda-overprivileged",
-        finding: "Lambda execution role: s3:*, iam:*, secretsmanager:* on *",
+        id: "function-overprivileged",
+        finding: "Cloud Function SA: roles/editor on project",
         severity: "Critical",
-        active: orderWebhookConfigured && aws,
+        active: orderWebhookConfigured && gcp,
         trigger: "Terraform (always deployed)",
       },
       {
-        id: "lambda-eicar",
-        finding: "Order webhook Lambda package contains EICAR test string",
+        id: "function-eicar",
+        finding: "Order webhook Cloud Function package contains EICAR test string",
         severity: "Medium",
-        active: orderWebhookConfigured && lambda?.eicar_present === true,
-        trigger: "Lambda deployment package",
+        active: orderWebhookConfigured && orderWebhook?.eicar_present === true,
+        trigger: "Cloud Function deployment package",
       },
       {
         id: "chat-rag-exposed",
@@ -148,19 +178,35 @@ function buildFindings(
     active_cves: cves,
     iam_misconfigurations: [
       {
-        role: "jays-surf-shop-demo-ecs-task",
-        finding: "demo-overprivileged policy attached",
-        details: "s3:*, secretsmanager:*, iam:* on Resource *",
+        role: "jayssurfshopdemo-app@PROJECT.iam.gserviceaccount.com",
+        finding: "roles/editor on GKE workload (metadata token theft risk)",
+        details: "T1552.005 — attached to all chat-rag pods via Workload Identity",
         severity: "Critical",
-        active: aws,
+        active: gcp,
         trigger: "Terraform (always deployed)",
       },
       {
-        role: "jays-surf-shop-demo-order-webhook",
-        finding: "lambda-demo-overprivileged policy attached",
-        details: "s3:*, secretsmanager:*, iam:* on Resource *",
+        role: "jayssurfshopdemo-prod@PROJECT.iam.gserviceaccount.com",
+        finding: "Production SA — Secret Manager Admin + Storage Object Admin",
+        details: "Target of impersonation / VM actAs escalation chain",
         severity: "Critical",
-        active: orderWebhookConfigured && aws,
+        active: gcp,
+        trigger: "Terraform (identity workshop)",
+      },
+      {
+        role: "jayssurfshopdemo-dev@PROJECT.iam.gserviceaccount.com",
+        finding: "Compromised dev SA — TokenCreator + actAs on prod + compute.instanceAdmin",
+        details: "T1550 / T1078 — key leaked to image; can impersonate or spawn VM",
+        severity: "Critical",
+        active: gcp,
+        trigger: "Terraform (identity workshop)",
+      },
+      {
+        role: "jayssurfshopdemo-order-wh@PROJECT.iam.gserviceaccount.com",
+        finding: "roles/editor on project (Cloud Function runtime SA)",
+        details: "storage.*, secretmanager.*, iam.* via project Editor role",
+        severity: "Critical",
+        active: orderWebhookConfigured && gcp,
         trigger: "Terraform (always deployed)",
       },
     ],
@@ -177,18 +223,18 @@ export async function GET() {
     /* chat-rag unreachable */
   }
 
-  let lambda: OrderWebhookStatus | null = null;
+  let orderWebhook: OrderWebhookStatus | null = null;
   const orderWebhookConfigured = Boolean(ORDER_WEBHOOK_URL);
   if (orderWebhookConfigured) {
     try {
       const res = await proxyOrderWebhook("/status");
-      if (res.ok) lambda = await res.json();
+      if (res.ok) orderWebhook = await res.json();
     } catch {
-      /* lambda unreachable */
+      /* function unreachable */
     }
   }
 
-  const findings = buildFindings(BASE.environment, demo, lambda, orderWebhookConfigured);
+  const findings = buildFindings(BASE.environment, demo, orderWebhook, orderWebhookConfigured);
 
   console.log(
     JSON.stringify({
@@ -197,7 +243,7 @@ export async function GET() {
       service: "frontend",
       environment: BASE.environment,
       exploit_lab: true,
-      lambda_enabled: findings.lambda_enabled,
+      function_enabled: findings.function_enabled,
     })
   );
 
@@ -209,8 +255,8 @@ export async function GET() {
     },
     findings: {
       exploit_lab_enabled: findings.exploit_lab_enabled,
-      aws_runtime: findings.aws_runtime,
-      lambda_enabled: findings.lambda_enabled,
+      gcp_runtime: findings.gcp_runtime,
+      function_enabled: findings.function_enabled,
       is_local: findings.is_local,
       eicar_present: findings.eicar_present,
       cspm_misconfigurations: findings.cspm_misconfigurations,

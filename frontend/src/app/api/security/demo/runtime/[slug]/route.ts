@@ -9,7 +9,10 @@ const PROXY_ROUTES: Record<string, string> = {
   "cryptominer-sim": "/demo/exploit/cryptominer-sim",
   "package-manager": "/demo/exploit/package-manager",
   "eicar-file": "/demo/exploit/eicar-file",
-  "s3-exfil": "/demo/exploit/s3-exfil",
+  "gcs-exfil": "/demo/exploit/gcs-exfil",
+  "sa-impersonation": "/demo/exploit/sa-impersonation",
+  "sa-key-theft": "/demo/exploit/sa-key-theft",
+  "vm-sa-escalation": "/demo/exploit/vm-sa-escalation",
 };
 
 export async function POST(

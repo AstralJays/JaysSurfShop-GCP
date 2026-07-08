@@ -6,3 +6,6 @@ environment  = "demo"
 # openai_api_key = "sk-..."
 
 # github_deploy_repo = "AstralJays/JaysSurfShop-GCP"
+
+# upwind_client_id     = "..."
+# upwind_client_secret = "..."

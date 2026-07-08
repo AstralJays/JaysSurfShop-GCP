@@ -136,7 +136,16 @@ def handle_yaml(body: dict) -> tuple:
 
 
 def dispatch(method: str, path: str, body: dict) -> tuple:
-    normalized = path.rstrip("/") or "/"
+    # Cloud Functions Gen2 / Cloud Run may include the service path prefix
+    normalized = path.split("?", 1)[0].rstrip("/") or "/"
+    if normalized.endswith("/demo/eicar"):
+        normalized = "/demo/eicar"
+    elif normalized.endswith("/demo/yaml"):
+        normalized = "/demo/yaml"
+    elif normalized.endswith("/checkout"):
+        normalized = "/checkout"
+    elif normalized.endswith("/status"):
+        normalized = "/status"
     if normalized == "/status" and method.upper() == "GET":
         return handle_status()
     if normalized == "/checkout" and method.upper() == "POST":

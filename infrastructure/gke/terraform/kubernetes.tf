@@ -1,9 +1,19 @@
 locals {
+  upwind_enabled = var.upwind_client_id != ""
+
+  upwind_tracer_env = local.upwind_enabled ? [
+    { name = "UPWIND_TRACER_API_HOST", value = "upwind-cluster-agent.upwind.svc.cluster.local:8082" },
+    { name = "UPWIND_TRACER_AUTH_CLIENT_ID", value = var.upwind_client_id },
+    { name = "UPWIND_TRACER_AUTH_CLIENT_SECRET", value = var.upwind_client_secret },
+    { name = "UPWIND_TRACER_EXTENDED_SYSCALLS", value = "true" },
+  ] : []
+
   service_env = {
     frontend = [
       { name = "SERVICE_NAME", value = "frontend" },
       { name = "ENVIRONMENT", value = var.environment },
       { name = "GCP_REGION", value = var.region },
+      { name = "GOOGLE_CLOUD_PROJECT", value = var.project_id },
       { name = "DEPLOYMENT_ID", value = local.name_prefix },
       { name = "LOG_FORMAT", value = "json" },
       { name = "CHAT_SERVICE_URL", value = local.internal_service_urls.chat-rag },
@@ -15,10 +25,14 @@ locals {
       { name = "SERVICE_NAME", value = "chat-rag" },
       { name = "ENVIRONMENT", value = var.environment },
       { name = "GCP_REGION", value = var.region },
+      { name = "GOOGLE_CLOUD_PROJECT", value = var.project_id },
       { name = "DEPLOYMENT_ID", value = local.name_prefix },
       { name = "LOG_FORMAT", value = "json" },
       { name = "AI_MODEL_CHAT", value = "gpt-4o-mini" },
       { name = "AI_MODEL_EMBED", value = "text-embedding-3-small" },
+      { name = "IMPERSONATION_TARGET_SA", value = google_service_account.prod.email },
+      { name = "WORKSHOP_DEV_SERVICE_ACCOUNT", value = google_service_account.dev.email },
+      { name = "LEAKED_DEV_KEY_PATH", value = "/var/run/demo/leaked-dev-sa.json" },
     ]
     board-generator = [
       { name = "SERVICE_NAME", value = "board-generator" },
@@ -29,6 +43,12 @@ locals {
       { name = "GCS_BUCKET", value = module.workshop.board_images_bucket },
       { name = "AI_MODEL", value = "gpt-image-1" },
     ]
+  }
+}
+
+locals {
+  service_env_with_upwind = {
+    for name, envs in local.service_env : name => concat(envs, local.upwind_tracer_env)
   }
 }
 
@@ -51,6 +71,19 @@ resource "kubernetes_secret" "openai" {
 
   data = {
     OPENAI_API_KEY = var.openai_api_key
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "leaked_dev_key" {
+  metadata {
+    name      = "leaked-dev-sa-key"
+    namespace = kubernetes_namespace.app.metadata[0].name
+  }
+
+  data = {
+    "leaked-dev-sa.json" = base64decode(google_service_account_key.dev_leaked.private_key)
   }
 
   type = "Opaque"
@@ -96,11 +129,19 @@ resource "kubernetes_deployment" "services" {
       spec {
         service_account_name = kubernetes_service_account.app.metadata[0].name
 
+        dynamic "volume" {
+          for_each = each.key == "chat-rag" ? [1] : []
+          content {
+            name = "leaked-dev-key"
+            secret {
+              secret_name = kubernetes_secret.leaked_dev_key.metadata[0].name
+            }
+          }
+        }
+
         container {
           name  = each.key
           image = "${module.workshop.artifact_registry_urls[each.key]}:${var.image_tag}"
-
-          command = each.value.command
 
           dynamic "port" {
             for_each = [each.value.port]
@@ -111,10 +152,55 @@ resource "kubernetes_deployment" "services" {
           }
 
           dynamic "env" {
-            for_each = local.service_env[each.key]
+            for_each = local.upwind_enabled ? local.service_env_with_upwind[each.key] : local.service_env[each.key]
             content {
               name  = env.value.name
               value = env.value.value
+            }
+          }
+
+          dynamic "security_context" {
+            for_each = local.upwind_enabled ? [1] : []
+            content {
+              capabilities {
+                add = ["SYS_PTRACE"]
+              }
+            }
+          }
+
+          dynamic "env" {
+            for_each = local.upwind_enabled ? [1] : []
+            content {
+              name = "POD_NAME"
+              value_from {
+                field_ref {
+                  field_path = "metadata.name"
+                }
+              }
+            }
+          }
+
+          dynamic "env" {
+            for_each = local.upwind_enabled ? [1] : []
+            content {
+              name = "POD_NAMESPACE"
+              value_from {
+                field_ref {
+                  field_path = "metadata.namespace"
+                }
+              }
+            }
+          }
+
+          dynamic "env" {
+            for_each = local.upwind_enabled ? [1] : []
+            content {
+              name = "NODE_NAME"
+              value_from {
+                field_ref {
+                  field_path = "spec.nodeName"
+                }
+              }
             }
           }
 
@@ -125,6 +211,15 @@ resource "kubernetes_deployment" "services" {
                 name = kubernetes_secret.openai.metadata[0].name
                 key  = "OPENAI_API_KEY"
               }
+            }
+          }
+
+          dynamic "volume_mount" {
+            for_each = each.key == "chat-rag" ? [1] : []
+            content {
+              name       = "leaked-dev-key"
+              mount_path = "/var/run/demo"
+              read_only  = true
             }
           }
 

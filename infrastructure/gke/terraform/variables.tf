@@ -71,3 +71,15 @@ variable "image_tag" {
   type    = string
   default = "latest"
 }
+
+variable "upwind_client_id" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "upwind_client_secret" {
+  type      = string
+  default   = ""
+  sensitive = true
+}

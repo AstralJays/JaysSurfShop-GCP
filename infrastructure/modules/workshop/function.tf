@@ -79,3 +79,12 @@ resource "google_cloudfunctions2_function_iam_member" "order_webhook_public" {
   role           = "roles/cloudfunctions.invoker"
   member         = "allUsers"
 }
+
+# Gen2 functions run on Cloud Run — public HTTPS also requires run.invoker
+resource "google_cloud_run_service_iam_member" "order_webhook_public_run" {
+  project  = var.project_id
+  location = var.region
+  service  = google_cloudfunctions2_function.order_webhook.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}

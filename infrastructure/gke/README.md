@@ -13,3 +13,7 @@ cp terraform.tfvars.example terraform.tfvars
 - App service account has project **Editor**
 - Public GCS bucket with synthetic customer export
 - Unauthenticated Cloud Function (order-webhook)
+
+## Upwind runtime (optional)
+
+Set `upwind_client_id` and `upwind_client_secret` in `terraform.tfvars`, then re-run `deploy-gke.sh`. Installs the Upwind Helm operator on the cluster.

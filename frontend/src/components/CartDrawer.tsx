@@ -168,7 +168,7 @@ export default function CartDrawer() {
               <p className="text-xs text-coral-600 text-center">{orderResult.error}</p>
             )}
             <p className="text-xs text-ocean-500 text-center">
-              Checkout posts to the order webhook (API Gateway + Lambda on AWS).
+              Checkout posts to the order webhook (Cloud Function on GCP).
             </p>
             <button
               type="button"

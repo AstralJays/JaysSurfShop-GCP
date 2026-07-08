@@ -11,8 +11,8 @@ export interface SecurityPoc {
   outcome: string;
   upwindPolicies: string[];
   requiresPillow?: boolean;
-  awsOnly?: boolean;
-  lambdaOnly?: boolean;
+  gcpOnly?: boolean;
+  functionOnly?: boolean;
 }
 
 export const POC_CATEGORIES: Array<{
@@ -23,12 +23,14 @@ export const POC_CATEGORIES: Array<{
   {
     id: "cloud-xdr",
     label: "Cloud XDR",
-    blurb: "Identity abuse, CloudTrail, and data exfiltration via AWS APIs after compromise.",
+    blurb:
+      "Realistic GCP identity abuse — SA impersonation, key theft, and post-compromise API access (Cloud Audit Logs).",
   },
   {
     id: "container-runtime",
     label: "Container Runtime",
-    blurb: "Process, syscall, file, and network signals from ECS/Fargate workloads.",
+    blurb:
+      "Shell access → metadata server token theft from overprivileged compute service accounts (T1552 / T1078).",
   },
   {
     id: "malware",
@@ -43,34 +45,94 @@ export const POC_CATEGORIES: Array<{
 ];
 
 export const SECURITY_POCS: SecurityPoc[] = [
-  // Cloud XDR
+  // Cloud XDR — identity-first attack paths
+  {
+    id: "sa-impersonation",
+    category: "cloud-xdr",
+    cve: "T1550 / T1078",
+    title: "Service account impersonation",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/sa-impersonation",
+    gcpOnly: true,
+    upwindPolicies: [
+      "iamcredentials GenerateAccessToken",
+      "Cloud Audit Logs identity",
+      "GCP credentials access",
+    ],
+    description:
+      "Compromised dev SA key impersonates production SA via GenerateAccessToken — no key theft required.",
+    outcome:
+      "Lists Secret Manager secrets as production — detect iamcredentials.googleapis.com in audit logs.",
+  },
+  {
+    id: "sa-key-theft",
+    category: "cloud-xdr",
+    cve: "T1552",
+    title: "Service account key theft",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/sa-key-theft",
+    gcpOnly: true,
+    upwindPolicies: ["Dormant key usage", "GCP credentials access"],
+    description:
+      "Uses a long-lived dev SA JSON key leaked in the container image / CI artifact (classic misconfiguration).",
+    outcome:
+      "Authenticates as dev SA — persistent access until key revoked; unlike metadata tokens.",
+  },
+  {
+    id: "vm-sa-escalation",
+    category: "cloud-xdr",
+    cve: "T1078",
+    title: "VM + actAs indirect escalation",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/vm-sa-escalation",
+    gcpOnly: true,
+    upwindPolicies: ["Cloud Audit Logs compute", "Identity graph / attack path"],
+    description:
+      "Dev SA has compute.instances.create + iam.serviceAccounts.actAs — can launch VM with production SA attached.",
+    outcome:
+      "Confirms permission chain for CNAPP graph demo (no real VM created).",
+  },
   {
     id: "iam-role-abuse",
     category: "cloud-xdr",
-    cve: "CWE-269",
-    title: "IAM role abuse",
+    cve: "T1078",
+    title: "Post-compromise data access",
     method: "POST",
     apiPath: "/api/security/demo/iam-abuse",
-    awsOnly: true,
-    upwindPolicies: ["CloudTrail / identity", "AWS credentials access"],
+    gcpOnly: true,
+    upwindPolicies: ["Cloud Audit Logs storage", "Secret Manager access"],
     description:
-      "Abuses the overprivileged ECS task role from chat-rag — ListBuckets, ListRoles, ListSecrets.",
-    outcome: "Real CloudTrail events for Cloud XDR correlation after container compromise.",
+      "After metadata token theft, abuses overprivileged runtime SA — list GCS buckets, secrets, and IAM.",
+    outcome: "Cloud Audit Log entries for data-plane enumeration from the workload.",
   },
   {
-    id: "s3-exfil",
+    id: "gcs-exfil",
     category: "cloud-xdr",
     cve: "CWE-200",
-    title: "S3 data exfiltration",
+    title: "GCS data exfiltration",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/s3-exfil",
-    awsOnly: true,
-    upwindPolicies: ["CloudTrail S3 APIs", "IAM role abuse chain"],
+    apiPath: "/api/security/demo/runtime/gcs-exfil",
+    gcpOnly: true,
+    upwindPolicies: ["Cloud Audit Logs storage APIs", "Service account abuse chain"],
     description:
-      "Enumerates S3 buckets and probes objects using the task role — post-compromise data theft.",
-    outcome: "Lists workshop buckets and samples a public demo object via IAM.",
+      "Enumerates GCS buckets and probes objects using stolen/impersonated credentials.",
+    outcome: "Lists workshop buckets and samples the public demo export.",
   },
   // Container Runtime
+  {
+    id: "metadata-creds",
+    category: "container-runtime",
+    cve: "T1552.005",
+    title: "Metadata server token theft",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/metadata-creds",
+    gcpOnly: true,
+    upwindPolicies: ["GCP credentials access", "Metadata server access"],
+    description:
+      "Overprivileged GKE SA — curl metadata.google.internal for OAuth token (most common workload identity risk).",
+    outcome:
+      "Redacted access token + SA email — run after Pillow RCE, before Cloud XDR identity abuse.",
+  },
   {
     id: "pillow-rce",
     category: "container-runtime",
@@ -85,7 +147,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Out Of Baseline",
     ],
     description: "Exploits Pillow 10.0.1 ImageMath.eval for container-local code execution.",
-    outcome: "Runs `sh -c id > /tmp/jss-cve-2023-50447-id.txt` — your Upwind detection.",
+    outcome: "Runs `id` via code execution — initial access for the identity kill chain.",
   },
   {
     id: "shell-pipe",
@@ -132,19 +194,6 @@ export const SECURITY_POCS: SecurityPoc[] = [
     description: "Legacy download handler reads `../confidential/api-credentials.txt`.",
     outcome: "Returns synthetic API keys — file access outside intended directory.",
   },
-  {
-    id: "metadata-creds",
-    category: "container-runtime",
-    cve: "CWE-918",
-    title: "Fargate metadata / AWS creds",
-    method: "POST",
-    apiPath: "/api/security/demo/runtime/metadata-creds",
-    awsOnly: true,
-    upwindPolicies: ["AWS credentials access", "Metadata DNS rebind"],
-    description:
-      "Curls 169.254.170.2 for ECS task metadata and temporary IAM credentials (Fargate IMDS analogue).",
-    outcome: "Redacted creds + task ARN — run after Pillow, before IAM abuse in Cloud XDR tab.",
-  },
   // Malware
   {
     id: "eicar-file",
@@ -155,30 +204,30 @@ export const SECURITY_POCS: SecurityPoc[] = [
     apiPath: "/api/security/demo/runtime/eicar-file",
     upwindPolicies: ["Malware protection"],
     description: "Writes the EICAR test string to `/tmp/eicar.com` inside chat-rag.",
-    outcome: "Container malware protection policy signal (distinct from Lambda EICAR).",
+    outcome: "Container malware protection policy signal (distinct from Cloud Function EICAR).",
   },
   {
     id: "eicar",
     category: "malware",
     cve: "EICAR",
-    title: "EICAR response (Lambda)",
+    title: "EICAR response (Cloud Function)",
     method: "GET",
     apiPath: "/api/security/demo/eicar",
-    lambdaOnly: true,
+    functionOnly: true,
     upwindPolicies: ["Malware protection (Cloud Scanner)"],
-    description: "Order webhook Lambda returns embedded EICAR from deployment package.",
-    outcome: "Serverless malware / artifact scanning demo via API Gateway.",
+    description: "Order webhook Cloud Function returns embedded EICAR from deployment package.",
+    outcome: "Serverless malware / artifact scanning demo via public HTTPS URL.",
   },
   {
     id: "yaml-deser",
     category: "malware",
     cve: "CVE-2020-14343",
-    title: "PyYAML deserialization (Lambda)",
+    title: "PyYAML deserialization (Cloud Function)",
     method: "POST",
     apiPath: "/api/security/demo/yaml",
-    lambdaOnly: true,
+    functionOnly: true,
     upwindPolicies: ["Serverless SCA + runtime"],
-    description: "Unsafe yaml.load() on attacker input in order-webhook Lambda.",
+    description: "Unsafe yaml.load() on attacker input in order-webhook Cloud Function.",
     outcome: "Proves serverless CVE exploitable at runtime.",
   },
   // AI
@@ -192,7 +241,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     upwindPolicies: ["Communication to External AI Service", "AI SPM"],
     description:
       "Sends a prompt-injection style request through unauthenticated /api/chat → OpenAI.",
-    outcome: "AI inference audit logs in CloudWatch — AI SPM without user identity.",
+    outcome: "AI inference audit logs in Cloud Logging — AI SPM without user identity.",
   },
   {
     id: "unauth-reindex",
@@ -211,14 +260,14 @@ export function isPocBlocked(
   poc: SecurityPoc,
   findings: {
     active_cves: Array<{ cve: string }>;
-    aws_runtime: boolean;
-    lambda_enabled: boolean;
+    gcp_runtime: boolean;
+    function_enabled: boolean;
   }
 ): boolean {
   if (poc.requiresPillow && findings.active_cves.every((c) => !c.cve.includes("50447"))) {
     return true;
   }
-  if (poc.awsOnly && !findings.aws_runtime) return true;
-  if (poc.lambdaOnly && !findings.lambda_enabled) return true;
+  if (poc.gcpOnly && !findings.gcp_runtime) return true;
+  if (poc.functionOnly && !findings.function_enabled) return true;
   return false;
 }

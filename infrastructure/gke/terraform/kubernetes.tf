@@ -4,6 +4,7 @@ locals {
       { name = "SERVICE_NAME", value = "frontend" },
       { name = "ENVIRONMENT", value = var.environment },
       { name = "GCP_REGION", value = var.region },
+      { name = "GOOGLE_CLOUD_PROJECT", value = var.project_id },
       { name = "DEPLOYMENT_ID", value = local.name_prefix },
       { name = "LOG_FORMAT", value = "json" },
       { name = "CHAT_SERVICE_URL", value = local.internal_service_urls.chat-rag },
@@ -15,10 +16,14 @@ locals {
       { name = "SERVICE_NAME", value = "chat-rag" },
       { name = "ENVIRONMENT", value = var.environment },
       { name = "GCP_REGION", value = var.region },
+      { name = "GOOGLE_CLOUD_PROJECT", value = var.project_id },
       { name = "DEPLOYMENT_ID", value = local.name_prefix },
       { name = "LOG_FORMAT", value = "json" },
       { name = "AI_MODEL_CHAT", value = "gpt-4o-mini" },
       { name = "AI_MODEL_EMBED", value = "text-embedding-3-small" },
+      { name = "IMPERSONATION_TARGET_SA", value = google_service_account.prod.email },
+      { name = "WORKSHOP_DEV_SERVICE_ACCOUNT", value = google_service_account.dev.email },
+      { name = "LEAKED_DEV_KEY_PATH", value = "/var/run/demo/leaked-dev-sa.json" },
     ]
     board-generator = [
       { name = "SERVICE_NAME", value = "board-generator" },
@@ -51,6 +56,19 @@ resource "kubernetes_secret" "openai" {
 
   data = {
     OPENAI_API_KEY = var.openai_api_key
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "leaked_dev_key" {
+  metadata {
+    name      = "leaked-dev-sa-key"
+    namespace = kubernetes_namespace.app.metadata[0].name
+  }
+
+  data = {
+    "leaked-dev-sa.json" = base64decode(google_service_account_key.dev_leaked.private_key)
   }
 
   type = "Opaque"
@@ -96,11 +114,19 @@ resource "kubernetes_deployment" "services" {
       spec {
         service_account_name = kubernetes_service_account.app.metadata[0].name
 
+        dynamic "volume" {
+          for_each = each.key == "chat-rag" ? [1] : []
+          content {
+            name = "leaked-dev-key"
+            secret {
+              secret_name = kubernetes_secret.leaked_dev_key.metadata[0].name
+            }
+          }
+        }
+
         container {
           name  = each.key
           image = "${module.workshop.artifact_registry_urls[each.key]}:${var.image_tag}"
-
-          command = each.value.command
 
           dynamic "port" {
             for_each = [each.value.port]
@@ -125,6 +151,15 @@ resource "kubernetes_deployment" "services" {
                 name = kubernetes_secret.openai.metadata[0].name
                 key  = "OPENAI_API_KEY"
               }
+            }
+          }
+
+          dynamic "volume_mount" {
+            for_each = each.key == "chat-rag" ? [1] : []
+            content {
+              name       = "leaked-dev-key"
+              mount_path = "/var/run/demo"
+              read_only  = true
             }
           }
 

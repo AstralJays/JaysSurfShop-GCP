@@ -22,6 +22,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.0"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 3.1"
+    }
   }
 }
 
@@ -43,6 +47,9 @@ module "workshop" {
   github_scan_repo    = var.github_scan_repo
   openai_api_key      = var.openai_api_key
   allowed_cidr_blocks = var.allowed_cidr_blocks
+  order_webhook_image_tag = var.image_tag
+  upwind_client_id        = var.upwind_client_id
+  upwind_client_secret    = var.upwind_client_secret
 }
 
 data "google_client_config" "default" {}
@@ -51,4 +58,12 @@ provider "kubernetes" {
   host                   = "https://${google_container_cluster.main.endpoint}"
   token                  = data.google_client_config.default.access_token
   cluster_ca_certificate = base64decode(google_container_cluster.main.master_auth[0].cluster_ca_certificate)
+}
+
+provider "helm" {
+  kubernetes = {
+    host                   = "https://${google_container_cluster.main.endpoint}"
+    token                  = data.google_client_config.default.access_token
+    cluster_ca_certificate = base64decode(google_container_cluster.main.master_auth[0].cluster_ca_certificate)
+  }
 }

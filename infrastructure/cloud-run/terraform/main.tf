@@ -37,6 +37,9 @@ module "workshop" {
   cost_center         = var.cost_center
   github_deploy_repo  = var.github_deploy_repo
   github_scan_repo    = var.github_scan_repo
-  openai_api_key      = var.openai_api_key
-  allowed_cidr_blocks = var.allowed_cidr_blocks
+  openai_api_key          = var.openai_api_key
+  allowed_cidr_blocks     = var.allowed_cidr_blocks
+  order_webhook_image_tag = var.image_tag
+  upwind_client_id        = var.upwind_client_id
+  upwind_client_secret    = var.upwind_client_secret
 }

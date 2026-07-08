@@ -2,17 +2,15 @@ import { NextResponse } from "next/server";
 import { proxyOrderWebhook } from "@/lib/orderWebhook";
 
 export async function POST() {
+  const res = await proxyOrderWebhook("/demo/yaml", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  let data: unknown;
   try {
-    const res = await proxyOrderWebhook("/demo/yaml", {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    data = await res.json();
   } catch {
-    return NextResponse.json(
-      { detail: "Order webhook unavailable" },
-      { status: 503 }
-    );
+    data = { detail: await res.text() };
   }
+  return NextResponse.json(data, { status: res.status });
 }

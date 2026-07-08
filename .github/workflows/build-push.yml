@@ -1,5 +1,10 @@
 name: Build and Push Images
 
+# Builds all container images for GKE and Cloud Run from repo Dockerfiles,
+# pushes to Artifact Registry. GKE workloads and the order-webhook Cloud Run
+# service both pull from this registry (set terraform image_tag to github.sha
+# after a successful run, or use latest).
+
 on:
   workflow_dispatch:
   push:
@@ -27,6 +32,8 @@ jobs:
             context: services/chat-rag
           - service: board-generator
             context: services/board-generator
+          - service: order-webhook
+            context: infrastructure/function/order-webhook
     steps:
       - uses: actions/checkout@v4
 
@@ -46,8 +53,11 @@ jobs:
           REGISTRY: ${{ secrets.GCP_ARTIFACT_REGISTRY_HOST }}
         run: |
           IMAGE="${REGISTRY}/${{ env.NAME_PREFIX }}/${{ matrix.service }}:${{ github.sha }}"
-          docker build -t "$IMAGE" \
-            -t "${REGISTRY}/${{ env.NAME_PREFIX }}/${{ matrix.service }}:latest" \
+          LATEST="${REGISTRY}/${{ env.NAME_PREFIX }}/${{ matrix.service }}:latest"
+          docker build --platform linux/amd64 \
+            -t "$IMAGE" \
+            -t "$LATEST" \
             "./${{ matrix.context }}"
           docker push "$IMAGE"
-          docker push "${REGISTRY}/${{ env.NAME_PREFIX }}/${{ matrix.service }}:latest"
+          docker push "$LATEST"
+          echo "pushed ${IMAGE}"

@@ -47,6 +47,9 @@ module "workshop" {
   github_scan_repo    = var.github_scan_repo
   openai_api_key      = var.openai_api_key
   allowed_cidr_blocks = var.allowed_cidr_blocks
+  order_webhook_image_tag = var.image_tag
+  upwind_client_id        = var.upwind_client_id
+  upwind_client_secret    = var.upwind_client_secret
 }
 
 data "google_client_config" "default" {}

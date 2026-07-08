@@ -22,7 +22,7 @@ Internet → frontend (GKE LoadBalancer or Cloud Run)
               ├── chat-rag (RAG + GPT-4o-mini, CVE-2023-50447)
               └── board-generator (DALL·E / gpt-image)
 
-Internet → Cloud Function → order-webhook (EICAR + PyYAML CVE-2020-14343)
+Internet → Cloud Run → order-webhook (EICAR + PyYAML CVE-2020-14343, Upwind tracer)
               ↑ checkout from cart
 ```
 
@@ -31,7 +31,7 @@ Internet → Cloud Function → order-webhook (EICAR + PyYAML CVE-2020-14343)
 | **frontend** | Next.js 15, React, Tailwind | 3000 |
 | **chat-rag** | FastAPI, ChromaDB, OpenAI, exploit lab | 8001 |
 | **board-generator** | FastAPI, image generation | 8002 |
-| **order-webhook** | Python Cloud Functions Gen2 | `/checkout`, `/demo/*` |
+| **order-webhook** | Python Cloud Run Gen2 + Upwind tracer | `/checkout`, `/demo/*` |
 
 ## Quick start (local)
 
@@ -60,18 +60,18 @@ Choose **Cloud Run** or **GKE** — both share VPC, Artifact Registry, Secret Ma
 #    GCP_PROJECT_ID, GCP_REGION, GCP_WORKLOAD_IDENTITY_PROVIDER,
 #    GCP_DEPLOY_SERVICE_ACCOUNT, GCP_ARTIFACT_REGISTRY_HOST
 
-# 3. Run "Build and Push Images" in Actions (or build-push.sh locally)
+# 3. Run "Build and Push Images" in Actions (builds all four images for GKE + Cloud Run)
 
-# 4. Full stack
+# 4. Full stack — set image_tag in terraform.tfvars to the commit SHA from CI, or latest
 cp infrastructure/cloud-run/terraform/terraform.tfvars.example \
    infrastructure/cloud-run/terraform/terraform.tfvars
-# Set project_id and openai_api_key in terraform.tfvars
+# Set project_id, openai_api_key, and optionally upwind_client_id/secret in terraform.tfvars
 ./infrastructure/scripts/deploy-cloud-run.sh   # or: deploy-gke.sh
 ```
 
 See [infrastructure/gke/README.md](infrastructure/gke/README.md) and [infrastructure/cloud-run/README.md](infrastructure/cloud-run/README.md).
 
-The workflow [`.github/workflows/build-push.yml`](.github/workflows/build-push.yml) builds all three images and pushes to Artifact Registry on push to `main` (or manual dispatch).
+The workflow [`.github/workflows/build-push.yml`](.github/workflows/build-push.yml) builds **frontend**, **chat-rag**, **board-generator**, and **order-webhook**, then pushes to Artifact Registry on push to `main` (or manual dispatch). GKE and Cloud Run both consume these images.
 
 Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)**
 

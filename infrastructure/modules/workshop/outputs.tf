@@ -66,11 +66,11 @@ output "demo_public_blob_url" {
 }
 
 output "order_webhook_url" {
-  value = google_cloudfunctions2_function.order_webhook.service_config[0].uri
+  value = google_cloud_run_v2_service.order_webhook.uri
 }
 
 output "order_checkout_url" {
-  value = "${google_cloudfunctions2_function.order_webhook.service_config[0].uri}/checkout"
+  value = "${google_cloud_run_v2_service.order_webhook.uri}/checkout"
 }
 
 output "github_actions_deploy_service_account" {

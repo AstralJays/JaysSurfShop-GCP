@@ -1,13 +1,4 @@
 locals {
-  upwind_enabled = var.upwind_client_id != ""
-
-  upwind_tracer_env = local.upwind_enabled ? [
-    { name = "UPWIND_TRACER_API_HOST", value = "upwind-cluster-agent.upwind.svc.cluster.local:8082" },
-    { name = "UPWIND_TRACER_AUTH_CLIENT_ID", value = var.upwind_client_id },
-    { name = "UPWIND_TRACER_AUTH_CLIENT_SECRET", value = var.upwind_client_secret },
-    { name = "UPWIND_TRACER_EXTENDED_SYSCALLS", value = "true" },
-  ] : []
-
   service_env = {
     frontend = [
       { name = "SERVICE_NAME", value = "frontend" },
@@ -43,12 +34,6 @@ locals {
       { name = "GCS_BUCKET", value = module.workshop.board_images_bucket },
       { name = "AI_MODEL", value = "gpt-image-1" },
     ]
-  }
-}
-
-locals {
-  service_env_with_upwind = {
-    for name, envs in local.service_env : name => concat(envs, local.upwind_tracer_env)
   }
 }
 
@@ -152,55 +137,10 @@ resource "kubernetes_deployment" "services" {
           }
 
           dynamic "env" {
-            for_each = local.upwind_enabled ? local.service_env_with_upwind[each.key] : local.service_env[each.key]
+            for_each = local.service_env[each.key]
             content {
               name  = env.value.name
               value = env.value.value
-            }
-          }
-
-          dynamic "security_context" {
-            for_each = local.upwind_enabled ? [1] : []
-            content {
-              capabilities {
-                add = ["SYS_PTRACE"]
-              }
-            }
-          }
-
-          dynamic "env" {
-            for_each = local.upwind_enabled ? [1] : []
-            content {
-              name = "POD_NAME"
-              value_from {
-                field_ref {
-                  field_path = "metadata.name"
-                }
-              }
-            }
-          }
-
-          dynamic "env" {
-            for_each = local.upwind_enabled ? [1] : []
-            content {
-              name = "POD_NAMESPACE"
-              value_from {
-                field_ref {
-                  field_path = "metadata.namespace"
-                }
-              }
-            }
-          }
-
-          dynamic "env" {
-            for_each = local.upwind_enabled ? [1] : []
-            content {
-              name = "NODE_NAME"
-              value_from {
-                field_ref {
-                  field_path = "spec.nodeName"
-                }
-              }
             }
           }
 

@@ -10,7 +10,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py .
+COPY main.py workshop_chain.py .
 
 # (2) Copy the Upwind Tracer binary from the build stage into your workload image.
 COPY --from=upwind-tracer /var/lib/upwind /var/lib/upwind

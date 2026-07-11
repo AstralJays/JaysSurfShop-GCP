@@ -5,8 +5,10 @@ import Link from "next/link";
 import {
   POC_CATEGORIES,
   SECURITY_POCS,
+  getStoriesForCategory,
   isPocBlocked,
   type PocCategory,
+  type PocStory,
   type SecurityPoc,
 } from "@/lib/securityPocs";
 
@@ -77,12 +79,16 @@ function Severity({ level }: { level: string }) {
 
 function PocCard({
   poc,
+  step,
+  totalSteps,
   blocked,
   running,
   result,
   onRun,
 }: {
   poc: SecurityPoc;
+  step?: number;
+  totalSteps?: number;
   blocked: boolean;
   running: boolean;
   result?: { ok: boolean; data: unknown };
@@ -92,6 +98,11 @@ function PocCard({
     <div className="card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
+          {step != null && totalSteps != null && (
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ocean-500 mb-1">
+              Step {step} of {totalSteps}
+            </p>
+          )}
           <p className="font-medium text-ocean-900">{poc.title}</p>
           <p className="text-xs font-mono text-ocean-500">{poc.cve}</p>
           <p className="text-sm text-ocean-700 mt-2">{poc.description}</p>
@@ -127,11 +138,93 @@ function PocCard({
   );
 }
 
+function StorySection({
+  story,
+  pocById,
+  findings,
+  running,
+  results,
+  onRun,
+  onRunStory,
+  onContinue,
+}: {
+  story: PocStory;
+  pocById: Map<string, SecurityPoc>;
+  findings: PostureData["findings"];
+  running: string | null;
+  results: Record<string, { ok: boolean; data: unknown }>;
+  onRun: (poc: SecurityPoc) => void;
+  onRunStory: (story: PocStory) => void;
+  onContinue?: (tab: PocCategory) => void;
+}) {
+  const storyPocs = story.pocIds
+    .map((id) => pocById.get(id))
+    .filter((poc): poc is SecurityPoc => poc != null);
+  const runnableCount = storyPocs.filter((poc) => !isPocBlocked(poc, findings)).length;
+
+  return (
+    <section id={`story-${story.id}`} className="mb-8">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <div>
+          <h3 className="font-display text-lg font-bold text-ocean-900">{story.title}</h3>
+          <p className="text-sm text-ocean-600 mt-1">{story.blurb}</p>
+          <p className="text-xs text-ocean-500 mt-2">
+            <span className="font-medium text-ocean-700">Upwind focus: </span>
+            {story.upwindFocus}
+          </p>
+          {story.continueIn && onContinue && (
+            <button
+              type="button"
+              onClick={() => onContinue(story.continueIn!.tab)}
+              className="text-xs text-teal-700 font-medium mt-2 hover:underline"
+            >
+              {story.continueIn.label} →
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          disabled={running != null || runnableCount === 0}
+          onClick={() => onRunStory(story)}
+          className="btn-secondary text-xs px-4 py-2 disabled:opacity-40 shrink-0"
+        >
+          Run story ({runnableCount})
+        </button>
+      </div>
+      <div className="space-y-3 border-l-2 border-ocean-100 pl-4 ml-1">
+        {story.pocIds.map((pocId, index) => {
+          const poc = pocById.get(pocId);
+          if (!poc) return null;
+          return (
+            <PocCard
+              key={poc.id}
+              poc={poc}
+              step={index + 1}
+              totalSteps={story.pocIds.length}
+              blocked={isPocBlocked(poc, findings)}
+              running={running === poc.id}
+              result={results[poc.id]}
+              onRun={() => onRun(poc)}
+            />
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function SecurityPage() {
   const [posture, setPosture] = useState<PostureData | null>(null);
   const [results, setResults] = useState<Record<string, { ok: boolean; data: unknown }>>({});
   const [running, setRunning] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PocCategory>("container-runtime");
+
+  const pocById = useMemo(
+    () => new Map(SECURITY_POCS.map((poc) => [poc.id, poc])),
+    []
+  );
+
+  const activeStories = useMemo(() => getStoriesForCategory(activeTab), [activeTab]);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/security/posture");
@@ -141,15 +234,6 @@ export default function SecurityPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  const pocsByCategory = useMemo(
-    () =>
-      POC_CATEGORIES.map((cat) => ({
-        ...cat,
-        pocs: SECURITY_POCS.filter((p) => p.category === cat.id),
-      })),
-    []
-  );
 
   async function runPoC(poc: SecurityPoc) {
     setRunning(poc.id);
@@ -167,6 +251,23 @@ export default function SecurityPage() {
     }
   }
 
+  async function runStory(story: PocStory) {
+    if (!posture) return;
+    for (const pocId of story.pocIds) {
+      const poc = pocById.get(pocId);
+      if (!poc || isPocBlocked(poc, posture.findings)) continue;
+      await runPoC(poc);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+
+  function continueToTab(tab: PocCategory) {
+    setActiveTab(tab);
+    window.setTimeout(() => {
+      document.getElementById("poc-stories")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }
+
   if (!posture) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-16 text-center text-ocean-500">
@@ -178,7 +279,7 @@ export default function SecurityPage() {
   const { findings } = posture;
   const activeCspm = findings.cspm_misconfigurations.filter((m) => m.active);
   const activeIam = findings.iam_misconfigurations.filter((m) => m.active && m.severity !== "Info");
-  const activeCategory = pocsByCategory.find((c) => c.id === activeTab)!;
+  const activeCategory = POC_CATEGORIES.find((c) => c.id === activeTab)!;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -187,7 +288,7 @@ export default function SecurityPage() {
           Security Posture &amp; Monitoring Demo
         </h1>
         <p className="mt-2 text-ocean-600">
-          Reference deployment for CSPM, Cloud XDR, container runtime, malware, and AI SPM workshops.
+          Reference deployment for CSPM, Cloud XDR, container runtime, and AI SPM workshops.
         </p>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
           {[
@@ -300,15 +401,15 @@ export default function SecurityPage() {
         </div>
       </section>
 
-      <section className="mb-8">
-        <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">PoC Attacks</h2>
+      <section id="poc-stories" className="mb-8">
+        <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">PoC Attack Stories</h2>
         <p className="text-sm text-ocean-600 mb-4">
-          Organized by Upwind detection domain. Synthetic data only.
+          Run each story in order — steps build correlated Upwind Events and Detections. Synthetic data only.
         </p>
 
         <div className="flex flex-wrap gap-2 mb-4 border-b border-ocean-100 pb-1">
-          {pocsByCategory.map((cat) => {
-            const count = cat.pocs.length;
+          {POC_CATEGORIES.map((cat) => {
+            const storyCount = getStoriesForCategory(cat.id).length;
             const active = activeTab === cat.id;
             return (
               <button
@@ -323,37 +424,28 @@ export default function SecurityPage() {
               >
                 {cat.label}
                 <span className={`ml-1.5 text-xs ${active ? "text-ocean-200" : "text-ocean-400"}`}>
-                  ({count})
+                  ({storyCount} {storyCount === 1 ? "story" : "stories"})
                 </span>
               </button>
             );
           })}
         </div>
 
-        <p className="text-xs text-ocean-500 mb-4">{activeCategory.blurb}</p>
+        <p className="text-xs text-ocean-500 mb-6">{activeCategory.blurb}</p>
 
-        <div className="mb-4 rounded-lg bg-ocean-50 px-4 py-3 text-xs text-ocean-700">
-          <span className="font-semibold text-ocean-900">Suggested kill chain: </span>
-          {activeTab === "container-runtime" &&
-            "Pillow RCE → metadata token theft (T1552) → switch to Cloud XDR for impersonation / key theft"}
-          {activeTab === "cloud-xdr" &&
-            "SA impersonation (T1550) or key theft (T1552) → Secret Manager / GCS access → optional VM+actAs graph"}
-          {activeTab === "malware" && "EICAR file in container + Cloud Function EICAR/YAML for scanner vs runtime"}
-          {activeTab === "ai" && "Unauthenticated chat for AI SPM logs, then reindex for admin abuse"}
-        </div>
-
-        <div className="space-y-3">
-          {activeCategory.pocs.map((poc) => (
-            <PocCard
-              key={poc.id}
-              poc={poc}
-              blocked={isPocBlocked(poc, findings)}
-              running={running === poc.id}
-              result={results[poc.id]}
-              onRun={() => runPoC(poc)}
-            />
-          ))}
-        </div>
+        {activeStories.map((story) => (
+          <StorySection
+            key={story.id}
+            story={story}
+            pocById={pocById}
+            findings={findings}
+            running={running}
+            results={results}
+            onRun={runPoC}
+            onRunStory={runStory}
+            onContinue={continueToTab}
+          />
+        ))}
       </section>
 
       <div className="text-center">

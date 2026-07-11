@@ -1,4 +1,14 @@
-export type PocCategory = "cloud-xdr" | "container-runtime" | "malware" | "ai";
+export type PocCategory = "cloud-xdr" | "container-runtime" | "ai";
+
+export interface PocStory {
+  id: string;
+  category: PocCategory;
+  title: string;
+  blurb: string;
+  upwindFocus: string;
+  pocIds: string[];
+  continueIn?: { tab: PocCategory; storyId: string; label: string };
+}
 
 export interface SecurityPoc {
   id: string;
@@ -24,18 +34,13 @@ export const POC_CATEGORIES: Array<{
     id: "cloud-xdr",
     label: "Cloud XDR",
     blurb:
-      "Realistic GCP identity abuse — SA impersonation, key theft, and post-compromise API access (Cloud Audit Logs).",
+      "Two identity paths after compromise — runtime SA data access or dev SA key → impersonation → GCS exfiltration.",
   },
   {
     id: "container-runtime",
     label: "Container Runtime",
     blurb:
-      "Shell access → metadata server token theft from overprivileged compute service accounts (T1552 / T1078).",
-  },
-  {
-    id: "malware",
-    label: "Malware",
-    blurb: "EICAR and vulnerable serverless artifacts — scanner and runtime malware policies.",
+      "Ordered stories from CVE initial access through post-exploit toolkit — run steps in sequence for correlated Upwind Stories.",
   },
   {
     id: "ai",
@@ -177,6 +182,30 @@ export const SECURITY_POCS: SecurityPoc[] = [
     outcome: "cp/chmod/xmrig exec chain + pool DNS lookups — discrete Process events.",
   },
   {
+    id: "curl-pipe-sh",
+    category: "container-runtime",
+    cve: "T1059 / T1105",
+    title: "curl | sh supply chain",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/curl-pipe-sh",
+    upwindPolicies: ["Operating system utilities processes", "Out Of Baseline"],
+    description:
+      "Runs `curl -fsSL file:///tmp/jss-supply-chain.sh | sh` against a harmless local script.",
+    outcome: "Real `sh` + `curl` exec chain with pipe-shaped argv and `/tmp` marker output.",
+  },
+  {
+    id: "renamed-downloader",
+    category: "container-runtime",
+    cve: "T1036 / T1105",
+    title: "Renamed downloader",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/renamed-downloader",
+    upwindPolicies: ["Operating system utilities processes", "Out Of Baseline"],
+    description:
+      "Copies `curl` to `/tmp/.wget`, chmods it, then executes the hidden-path downloader.",
+    outcome: "cp/chmod/run chain from `/tmp/.wget` — tracer/sensor-friendly process drift signal.",
+  },
+  {
     id: "package-manager",
     category: "container-runtime",
     cve: "CWE-494",
@@ -186,6 +215,23 @@ export const SECURITY_POCS: SecurityPoc[] = [
     upwindPolicies: ["Package Managers Processes", "Drift"],
     description: "Runs `pip install pytz` inside the running chat-rag container.",
     outcome: "Package manager install process — Package Managers Processes built-in.",
+  },
+  {
+    id: "sensitive-file-cat",
+    category: "container-runtime",
+    cve: "T1005",
+    title: "Sensitive file via cat",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/sensitive-file-cat",
+    upwindPolicies: [
+      "Sensitive file access",
+      "Sensitive System File Access",
+      "System Information File Access",
+      "Operating system utilities processes",
+    ],
+    description:
+      "Runs discrete `cat` processes against `/etc/passwd`, `/etc/hosts`, and `/proc/*` files.",
+    outcome: "Explicit Process/File events for sensitive file reads without relying on Python IO.",
   },
   {
     id: "path-traversal",
@@ -204,31 +250,6 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Legacy download reads `../confidential/api-credentials.txt`, then cats `/etc/passwd` and `/proc/cpuinfo`.",
     outcome: "Traversal plus discrete cat on system paths for file/process built-ins.",
   },
-  // Malware
-  {
-    id: "eicar-file",
-    category: "malware",
-    cve: "EICAR",
-    title: "EICAR file write (container)",
-    method: "POST",
-    apiPath: "/api/security/demo/runtime/eicar-file",
-    upwindPolicies: ["Malware protection", "Direct File system access"],
-    description:
-      "Writes EICAR via tee + direct write to `/tmp/eicar*.com`, then cats each file.",
-    outcome: "Multi-path EICAR write/read — Malware protection plus File/Process events.",
-  },
-  {
-    id: "eicar-file-cloudrun",
-    category: "malware",
-    cve: "EICAR",
-    title: "EICAR file write (Cloud Run)",
-    method: "POST",
-    apiPath: "/api/security/demo/eicar-file",
-    functionOnly: true,
-    upwindPolicies: ["Malware protection", "Custom File rules"],
-    description: "Writes EICAR to `/tmp/eicar.com` inside order-webhook Cloud Run container.",
-    outcome: "Tracer File event on serverless — same class of signal as GKE eicar-file.",
-  },
   {
     id: "shell-pipe-cloudrun",
     category: "container-runtime",
@@ -241,30 +262,6 @@ export const SECURITY_POCS: SecurityPoc[] = [
     description:
       "Spawns `sh -c 'id | tee /tmp/jss-cloudrun-shell.txt'` in order-webhook Cloud Run.",
     outcome: "Tracer Process event with workshop marker for custom Sensor-style rules on serverless.",
-  },
-  {
-    id: "eicar",
-    category: "malware",
-    cve: "EICAR",
-    title: "EICAR response (Cloud Function)",
-    method: "GET",
-    apiPath: "/api/security/demo/eicar",
-    functionOnly: true,
-    upwindPolicies: ["Malware protection (Cloud Scanner)"],
-    description: "Order webhook Cloud Function returns embedded EICAR from deployment package.",
-    outcome: "Serverless malware / artifact scanning demo via public HTTPS URL.",
-  },
-  {
-    id: "yaml-deser",
-    category: "malware",
-    cve: "CVE-2020-14343",
-    title: "PyYAML deserialization (Cloud Function)",
-    method: "POST",
-    apiPath: "/api/security/demo/yaml",
-    functionOnly: true,
-    upwindPolicies: ["Serverless SCA + runtime"],
-    description: "Unsafe yaml.load() on attacker input in order-webhook Cloud Function.",
-    outcome: "Proves serverless CVE exploitable at runtime.",
   },
   // AI
   {
@@ -291,6 +288,78 @@ export const SECURITY_POCS: SecurityPoc[] = [
     outcome: "Unauthorized admin on AI data plane — rebuilds embeddings via OpenAI.",
   },
 ];
+
+export const POC_STORIES: PocStory[] = [
+  {
+    id: "container-compromise",
+    category: "container-runtime",
+    title: "Story 1 — CVE to cloud pivot",
+    blurb:
+      "Exploit Pillow RCE, harvest secrets on disk, probe host paths, then curl the metadata server for an OAuth token.",
+    upwindFocus: "Process events → sensitive file reads → GCP credentials / metadata access",
+    pocIds: ["pillow-rce", "path-traversal", "sensitive-file-cat", "metadata-creds"],
+    continueIn: {
+      tab: "cloud-xdr",
+      storyId: "identity-to-data",
+      label: "Continue in Cloud XDR → Story 1 (Runtime SA to GCS exfiltration)",
+    },
+  },
+  {
+    id: "post-exploit-toolkit",
+    category: "container-runtime",
+    title: "Story 2 — Attacker toolkit & impact",
+    blurb:
+      "Stage a supply-chain download, evade with a renamed binary, run crypto miner impact, install persistence tools, then syscall pipe patterns.",
+    upwindFocus:
+      "Crypto mining threats + CVE probing Story correlation on GKE sensor (pillow + miner + pip + shell)",
+    pocIds: [
+      "curl-pipe-sh",
+      "renamed-downloader",
+      "cryptominer-sim",
+      "package-manager",
+      "shell-pipe",
+    ],
+  },
+  {
+    id: "serverless-tracer",
+    category: "container-runtime",
+    title: "Story 3 — Serverless tracer (Cloud Run)",
+    blurb:
+      "Separate workload lane — order-webhook Cloud Run tracer instead of GKE chat-rag sensor.",
+    upwindFocus: "Custom Process rules · tracer on Cloud Run, not node eBPF sensor",
+    pocIds: ["shell-pipe-cloudrun"],
+  },
+  {
+    id: "identity-to-data",
+    category: "cloud-xdr",
+    title: "Story 1 — Runtime SA to GCS exfiltration",
+    blurb:
+      "After metadata token theft in Container Story 1, abuse the overprivileged GKE service account and probe GCS.",
+    upwindFocus: "Cloud Audit Logs storage · Secret Manager · service account abuse chain",
+    pocIds: ["iam-role-abuse", "gcs-exfil"],
+  },
+  {
+    id: "sa-escalation",
+    category: "cloud-xdr",
+    title: "Story 2 — Dev SA key to impersonation",
+    blurb:
+      "Alternate kill chain: leaked dev SA JSON key → impersonate production SA → confirm VM+actAs escalation path.",
+    upwindFocus: "Dormant key usage · iamcredentials GenerateAccessToken · identity graph",
+    pocIds: ["sa-key-theft", "sa-impersonation", "vm-sa-escalation", "gcs-exfil"],
+  },
+  {
+    id: "ai-data-plane",
+    category: "ai",
+    title: "Story 1 — Unauthenticated AI abuse",
+    blurb: "Prompt abuse through the open chat endpoint, then wipe and rebuild RAG without authentication.",
+    upwindFocus: "Communication to External AI Service · AI SPM · unauthorized admin",
+    pocIds: ["ai-chat-unauth", "unauth-reindex"],
+  },
+];
+
+export function getStoriesForCategory(category: PocCategory): PocStory[] {
+  return POC_STORIES.filter((story) => story.category === category);
+}
 
 export function isPocBlocked(
   poc: SecurityPoc,

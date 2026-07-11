@@ -21,7 +21,7 @@ const BASE = {
       { path: "/design", note: "Create-A-Board UI" },
       { path: "/api/chat", note: "Unauthenticated → OpenAI" },
       { path: "/api/board", note: "Unauthenticated → image gen" },
-      { path: "/api/checkout", note: "Cart checkout → order webhook Cloud Function" },
+      { path: "/api/checkout", note: "Cart checkout → order webhook (fulfillmentManifest YAML chain when poisoned)" },
       { path: "/api/security/posture", note: "Posture metadata" },
       { path: "/api/security/demo/*", note: "PoC proxy" },
     ],
@@ -85,7 +85,7 @@ function buildFindings(
     });
     attackSurfacePublic.push({
       path: `${ORDER_WEBHOOK_URL}/checkout`,
-      note: "Unauthenticated checkout → order webhook Cloud Function",
+      note: "Unauthenticated checkout → order webhook; fulfillmentManifest triggers PyYAML kill chain",
     });
     attackSurfacePublic.push({
       path: `${ORDER_WEBHOOK_URL}/demo/eicar`,

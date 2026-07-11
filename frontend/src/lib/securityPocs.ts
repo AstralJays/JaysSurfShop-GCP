@@ -263,6 +263,25 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Spawns `sh -c 'id | tee /tmp/jss-cloudrun-shell.txt'` in order-webhook Cloud Run.",
     outcome: "Tracer Process event with workshop marker for custom Sensor-style rules on serverless.",
   },
+  {
+    id: "order-yaml-checkout",
+    category: "container-runtime",
+    cve: "CVE-2020-14343",
+    title: "Poisoned checkout fulfillment",
+    method: "POST",
+    apiPath: "/api/security/demo/order-yaml-checkout",
+    functionOnly: true,
+    upwindPolicies: [
+      "CVE-2020-14343 / unsafe deserialization",
+      "Shell Process Redirect",
+      "GCP credentials access",
+      "Cloud Audit Logs storage",
+    ],
+    description:
+      "Places a real order via POST /api/checkout with a malicious fulfillmentManifest — yaml.load RCE in the order handler, then id/shell, metadata token theft, and GCS enumeration.",
+    outcome:
+      "Full kill chain in checkout response on order-webhook Cloud Run; tracer Process events plus Cloud Audit Logs.",
+  },
   // AI
   {
     id: "ai-chat-unauth",
@@ -321,13 +340,14 @@ export const POC_STORIES: PocStory[] = [
     ],
   },
   {
-    id: "serverless-tracer",
+    id: "serverless-checkout-chain",
     category: "container-runtime",
-    title: "Story 3 — Serverless tracer (Cloud Run)",
+    title: "Story 3 — Poisoned checkout (order webhook)",
     blurb:
-      "Separate workload lane — order-webhook Cloud Run tracer instead of GKE chat-rag sensor.",
-    upwindFocus: "Custom Process rules · tracer on Cloud Run, not node eBPF sensor",
-    pocIds: ["shell-pipe-cloudrun"],
+      "Real cart checkout path on order-webhook Cloud Run: poisoned fulfillmentManifest triggers PyYAML RCE, post-exploit subprocess toolkit, metadata token theft, and GCS abuse.",
+    upwindFocus:
+      "Tracer Process events on Cloud Run · GCP credentials access · Cloud Audit Logs storage",
+    pocIds: ["order-yaml-checkout", "shell-pipe-cloudrun"],
   },
   {
     id: "identity-to-data",

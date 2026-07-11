@@ -1,4 +1,4 @@
-# Upwind GKE operator (optional — set credentials in terraform.tfvars)
+# Upwind sensor — node scan agents (runtime). GKE workloads only; not used on Cloud Run.
 module "kubernetes_helm_upwind_operator" {
   count  = var.upwind_client_id != "" ? 1 : 0
   source = "https://get.upwind.io/terraform/modules/kubernetes-helm-upwind-operator/kubernetes-helm-upwind-operator-1.1.0.tar.gz"

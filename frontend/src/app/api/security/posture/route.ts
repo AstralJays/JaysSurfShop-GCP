@@ -95,6 +95,14 @@ function buildFindings(
       path: `${ORDER_WEBHOOK_URL}/demo/yaml`,
       note: "Unauthenticated PyYAML exploit demo",
     });
+    attackSurfacePublic.push({
+      path: `${ORDER_WEBHOOK_URL}/demo/eicar-file`,
+      note: "EICAR file write — Cloud Run tracer File events",
+    });
+    attackSurfacePublic.push({
+      path: `${ORDER_WEBHOOK_URL}/demo/shell-pipe`,
+      note: "Shell pipe redirect — Cloud Run tracer Process events",
+    });
   }
 
   return {

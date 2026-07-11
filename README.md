@@ -22,7 +22,7 @@ Internet → frontend (GKE LoadBalancer or Cloud Run)
               ├── chat-rag (RAG + GPT-4o-mini, CVE-2023-50447)
               └── board-generator (DALL·E / gpt-image)
 
-Internet → Cloud Run → order-webhook (EICAR + PyYAML CVE-2020-14343, Upwind tracer)
+Internet → order-webhook (serverless — EICAR + PyYAML CVE-2020-14343)
               ↑ checkout from cart
 ```
 
@@ -31,7 +31,20 @@ Internet → Cloud Run → order-webhook (EICAR + PyYAML CVE-2020-14343, Upwind 
 | **frontend** | Next.js 15, React, Tailwind | 3000 |
 | **chat-rag** | FastAPI, ChromaDB, OpenAI, exploit lab | 8001 |
 | **board-generator** | FastAPI, image generation | 8002 |
-| **order-webhook** | Python Cloud Run Gen2 + Upwind tracer | `/checkout`, `/demo/*` |
+| **order-webhook** | Python serverless (Cloud Function Gen2) | `/checkout`, `/demo/*` |
+
+### Upwind coverage (different mechanisms per platform)
+
+GKE and Cloud Run are protected by **different Upwind components** — do not mix them on the same workload.
+
+| Platform | Upwind mechanism | When it acts | GKE app images |
+|----------|------------------|--------------|----------------|
+| **GKE** | **Sensor** — operator + node scan agents | Runtime (process, network, drift) | No Dockerfile tracer |
+| **GKE** | **Admission Controller** — admission webhook + OPA | Deploy-time (Kubernetes API create/update) | N/A (cluster-level) |
+| **Cloud Run** | **Tracer** — embedded in container image | Runtime on serverless containers | N/A (not used on GKE) |
+
+- **GKE path:** `deploy-gke.sh` installs sensor + admission webhook when `upwind_client_id` / `upwind_client_secret` are set. See [infrastructure/gke/README.md](infrastructure/gke/README.md).
+- **Cloud Run path:** CI builds `order-webhook` with the Upwind tracer in the Dockerfile; runtime env vars are set at deploy. See [infrastructure/cloud-run/README.md](infrastructure/cloud-run/README.md).
 
 ## Quick start (local)
 

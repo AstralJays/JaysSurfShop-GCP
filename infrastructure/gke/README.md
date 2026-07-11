@@ -23,10 +23,22 @@ All container images are built and pushed by GitHub Actions ([`.github/workflows
 | `frontend` | GKE Deployment / Cloud Run |
 | `chat-rag` | GKE Deployment / Cloud Run |
 | `board-generator` | GKE Deployment / Cloud Run |
-| `order-webhook` | Cloud Run (shared order webhook) |
+| `order-webhook` | Serverless order webhook (not deployed on GKE) |
 
-## Upwind runtime (optional)
+## Upwind on GKE (optional)
 
-Set `upwind_client_id` and `upwind_client_secret` in `terraform.tfvars`, then re-run `deploy-gke.sh`. Installs the Upwind Helm operator on the cluster (node scan agents; no Dockerfile tracer on GKE workloads).
+Set `upwind_client_id` and `upwind_client_secret` in `terraform.tfvars`, then re-run `deploy-gke.sh`. This installs **two separate Upwind mechanisms** on the cluster — not the Cloud Run tracer.
 
-The order webhook Cloud Run service uses an embedded Upwind tracer when the same credentials are set — image is built by CI (`order-webhook` in the build-push workflow).
+| Upwind product | Terraform / Helm | What it does |
+|----------------|------------------|--------------|
+| **Sensor** | `upwind.tf` — operator + node scan agents (`scanAgent.sidecar: false`) | Runtime detection on pods (processes, network, drift). GKE workload images have **no** embedded tracer. |
+| **Admission Controller** | `upwind_admission.tf` — admission webhook + cert-manager | Deploy-time guardrails via Kubernetes validating webhook (OPA policies + audit). Configure policies in the Upwind console. |
+
+These are independent layers: sensor watches running workloads; admission controller evaluates manifests at create/update time. Tracer injection on the admission chart is **disabled** so it does not duplicate the node scan agents.
+
+After apply, verify admission webhook:
+
+```bash
+kubectl get pods -n upwind -l app.kubernetes.io/name=upwind-admission-webhook
+kubectl get validatingwebhookconfiguration upwind-admission-webhook
+```

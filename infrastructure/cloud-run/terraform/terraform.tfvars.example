@@ -5,4 +5,8 @@ environment  = "demo"
 
 # openai_api_key = "sk-..."
 
+# Upwind tracer credentials for order-webhook (Sensor type in Upwind console)
+# upwind_client_id     = "..."
+# upwind_client_secret = "..."
+
 # github_deploy_repo = "AstralJays/JaysSurfShop-GCP"

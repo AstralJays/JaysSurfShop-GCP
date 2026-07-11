@@ -29,14 +29,14 @@ provider "google" {
 module "workshop" {
   source = "../../modules/workshop"
 
-  project_id          = var.project_id
-  region              = var.region
-  project_name        = var.project_name
-  environment         = var.environment
-  owner               = var.owner
-  cost_center         = var.cost_center
-  github_deploy_repo  = var.github_deploy_repo
-  github_scan_repo    = var.github_scan_repo
+  project_id              = var.project_id
+  region                  = var.region
+  project_name            = var.project_name
+  environment             = var.environment
+  owner                   = var.owner
+  cost_center             = var.cost_center
+  github_deploy_repo      = var.github_deploy_repo
+  github_scan_repo        = var.github_scan_repo
   openai_api_key          = var.openai_api_key
   allowed_cidr_blocks     = var.allowed_cidr_blocks
   order_webhook_image_tag = var.image_tag

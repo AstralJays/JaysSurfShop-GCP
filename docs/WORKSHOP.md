@@ -52,3 +52,37 @@ This deployment models the three identity risks security teams prioritize on GCP
 ```
 
 Open `/security` on the frontend LoadBalancer URL.
+
+## Upwind demo map
+
+Use the right Upwind product for each compute path — they are not interchangeable.
+
+| Compute | Upwind mechanisms | Demo focus |
+|---------|-------------------|------------|
+| **GKE** (frontend, chat-rag, board-generator) | **Sensor** (node scan agents) + **Admission Controller** (webhook) | Container runtime PoCs on `/security`; deploy-time policy violations via admission |
+| **Cloud Run / serverless** (order-webhook) | **Tracer** (embedded in image) | EICAR upload, PyYAML CVE, serverless runtime |
+
+### GKE — sensor (runtime)
+
+- Installed by `upwind.tf` when credentials are set in GKE `terraform.tfvars`.
+- Node scan agents on the cluster; no tracer in GKE container images.
+- Run container PoCs from the security dashboard (shell redirect, crypto miner DNS, package managers, etc.).
+
+### GKE — admission control (deploy-time)
+
+- Installed by `upwind_admission.tf` (requires cert-manager).
+- Validates Kubernetes create/update requests before workloads run.
+- Create Admission Controller policies in the Upwind console (Audit first, then Block).
+
+Verify:
+
+```bash
+kubectl get pods -n upwind -l app.kubernetes.io/name=upwind-admission-webhook
+kubectl get validatingwebhookconfiguration upwind-admission-webhook
+```
+
+### Cloud Run — tracer (runtime)
+
+- `order-webhook` image built with Upwind tracer in CI (`build-push.yml`).
+- Separate from GKE sensor/admission — serverless has no node agents or admission webhook.
+- PoCs: `/demo/eicar`, `/checkout` with malicious YAML payload.

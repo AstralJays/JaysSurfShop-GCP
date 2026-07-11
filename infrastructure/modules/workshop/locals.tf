@@ -3,14 +3,14 @@ locals {
   compact_name = replace(local.name_prefix, "-", "")
 
   common_labels = {
-    project        = var.project_name
-    environment    = var.environment
-    owner          = var.owner
-    application    = "cspm-demo"
-    cost_center    = var.cost_center
-    managed_by     = "terraform"
-    workshop       = "cloud-security-monitoring"
-    cloud          = "gcp"
+    project     = var.project_name
+    environment = var.environment
+    owner       = var.owner
+    application = "cspm-demo"
+    cost_center = var.cost_center
+    managed_by  = "terraform"
+    workshop    = "cloud-security-monitoring"
+    cloud       = "gcp"
   }
 
   services = {

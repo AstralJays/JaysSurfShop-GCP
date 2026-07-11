@@ -9,3 +9,5 @@ environment  = "demo"
 
 # upwind_client_id     = "..."
 # upwind_client_secret = "..."
+# GKE only: enables Upwind sensor (node scan agents) + Admission Controller webhook.
+# Cloud Run tracer uses the same credentials but is configured separately — see cloud-run/README.md.

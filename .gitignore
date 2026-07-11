@@ -29,9 +29,19 @@ out/
 dist/
 build/
 
-# Environment
+# Environment and local secrets (never commit)
 .env
-.env.local
+.env.*
+!.env.example
+
+# Terraform variables and plans (use *.tfvars.example + TF_VAR_* / -var-file locally)
+**/terraform.tfvars
+!**/terraform.tfvars.example
+**/*.auto.tfvars
+**/tfplan
+**/tfplan-*
+**/*.tfplan
+**/leaked-sp.json
 
 # IDE
 .idea/

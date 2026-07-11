@@ -127,11 +127,11 @@ export const SECURITY_POCS: SecurityPoc[] = [
     method: "POST",
     apiPath: "/api/security/demo/runtime/metadata-creds",
     gcpOnly: true,
-    upwindPolicies: ["GCP credentials access", "Metadata server access"],
+    upwindPolicies: ["GCP credentials access", "Metadata server access", "Lookup IP Services DNS"],
     description:
       "Overprivileged GKE SA — curl metadata.google.internal for OAuth token (most common workload identity risk).",
     outcome:
-      "Redacted access token + SA email — run after Pillow RCE, before Cloud XDR identity abuse.",
+      "Redacted access token + metadata curl + IP lookup DNS/curl — run after Pillow RCE.",
   },
   {
     id: "pillow-rce",
@@ -147,7 +147,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Out Of Baseline",
     ],
     description: "Exploits Pillow 10.0.1 ImageMath.eval for container-local code execution.",
-    outcome: "Runs `id` via code execution — initial access for the identity kill chain.",
+    outcome: "Runs `id -a` after RCE — sensor/tracer-friendly Process events on GKE/Cloud Run.",
   },
   {
     id: "shell-pipe",
@@ -156,9 +156,13 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Shell pipe redirect",
     method: "POST",
     apiPath: "/api/security/demo/runtime/shell-pipe",
-    upwindPolicies: ["Shell Process Redirect", "Operating system utilities processes"],
-    description: "Spawns `sh` with `id | tee` — pipe redirect from an app container.",
-    outcome: "Triggers syscall/process policies distinct from Pillow CVE chain.",
+    upwindPolicies: [
+      "Interactive shell process stream redirected to a pipe",
+      "Shell Process Redirect",
+      "Operating system utilities processes",
+    ],
+    description: "Runs real `id` + `tee` binaries, then `sh -i` with stdio on pipes.",
+    outcome: "Strong syscall signal on GKE sensor; discrete Process events on Cloud Run tracer.",
   },
   {
     id: "cryptominer-sim",
@@ -169,8 +173,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
     apiPath: "/api/security/demo/runtime/cryptominer-sim",
     upwindPolicies: ["Crypto mining threats", "CryptoMiners Services DNS"],
     description:
-      "Harmless simulation: process renamed to `xmrig` + DNS lookups for known mining pools.",
-    outcome: "No real mining — signals for cryptominer process and pool DNS policies.",
+      "Harmless simulation: cp/chmod/run `/tmp/xmrig` + DNS lookups for known mining pools.",
+    outcome: "cp/chmod/xmrig exec chain + pool DNS lookups — discrete Process events.",
   },
   {
     id: "package-manager",
@@ -180,8 +184,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
     method: "POST",
     apiPath: "/api/security/demo/runtime/package-manager",
     upwindPolicies: ["Package Managers Processes", "Drift"],
-    description: "Runs `pip list` inside the running chat-rag container.",
-    outcome: "Runtime drift / supply-chain policy signal from live workload.",
+    description: "Runs `pip install pytz` inside the running chat-rag container.",
+    outcome: "Package manager install process — Package Managers Processes built-in.",
   },
   {
     id: "path-traversal",
@@ -190,9 +194,15 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Path traversal",
     method: "GET",
     apiPath: "/api/security/demo/traversal",
-    upwindPolicies: ["Sensitive file access", "Sensitive System File Access"],
-    description: "Legacy download handler reads `../confidential/api-credentials.txt`.",
-    outcome: "Returns synthetic API keys — file access outside intended directory.",
+    upwindPolicies: [
+      "Sensitive file access",
+      "Sensitive System File Access",
+      "System Information File Access",
+      "Operating system utilities processes",
+    ],
+    description:
+      "Legacy download reads `../confidential/api-credentials.txt`, then cats `/etc/passwd` and `/proc/cpuinfo`.",
+    outcome: "Traversal plus discrete cat on system paths for file/process built-ins.",
   },
   // Malware
   {
@@ -202,9 +212,35 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "EICAR file write (container)",
     method: "POST",
     apiPath: "/api/security/demo/runtime/eicar-file",
-    upwindPolicies: ["Malware protection"],
-    description: "Writes the EICAR test string to `/tmp/eicar.com` inside chat-rag.",
-    outcome: "Container malware protection policy signal (distinct from Cloud Function EICAR).",
+    upwindPolicies: ["Malware protection", "Direct File system access"],
+    description:
+      "Writes EICAR via tee + direct write to `/tmp/eicar*.com`, then cats each file.",
+    outcome: "Multi-path EICAR write/read — Malware protection plus File/Process events.",
+  },
+  {
+    id: "eicar-file-cloudrun",
+    category: "malware",
+    cve: "EICAR",
+    title: "EICAR file write (Cloud Run)",
+    method: "POST",
+    apiPath: "/api/security/demo/eicar-file",
+    functionOnly: true,
+    upwindPolicies: ["Malware protection", "Custom File rules"],
+    description: "Writes EICAR to `/tmp/eicar.com` inside order-webhook Cloud Run container.",
+    outcome: "Tracer File event on serverless — same class of signal as GKE eicar-file.",
+  },
+  {
+    id: "shell-pipe-cloudrun",
+    category: "container-runtime",
+    cve: "T1059",
+    title: "Shell pipe redirect (Cloud Run)",
+    method: "POST",
+    apiPath: "/api/security/demo/shell-pipe",
+    functionOnly: true,
+    upwindPolicies: ["Shell Process Redirect", "Custom Process rules"],
+    description:
+      "Spawns `sh -c 'id | tee /tmp/jss-cloudrun-shell.txt'` in order-webhook Cloud Run.",
+    outcome: "Tracer Process event with workshop marker for custom Sensor-style rules on serverless.",
   },
   {
     id: "eicar",

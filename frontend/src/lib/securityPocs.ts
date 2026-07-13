@@ -334,6 +334,25 @@ export const SECURITY_POCS: SecurityPoc[] = [
     description: "Wipes and rebuilds the RAG knowledge base with no authentication.",
     outcome: "Unauthorized admin on AI data plane — rebuilds embeddings via OpenAI.",
   },
+  {
+    id: "langchain-ai",
+    category: "ai",
+    cve: "CVE-2024-5998",
+    title: "LangChain / Chroma AI supply chain",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/langchain-ai",
+    upwindPolicies: [
+      "AI SPM / vulnerable AI packages",
+      "Operating system utilities processes",
+      "Shell Process Redirect",
+      "Package Managers Processes",
+      "Crypto mining threats",
+    ],
+    description:
+      "Pinned langchain-community (CVE-2024-5998 FAISS pickle) + chromadb 0.5.x (CVE-2026-45831). Workshop harness runs post-deserialize toolkit in chat-rag — no pickle gadget shipped.",
+    outcome:
+      "SCA Criticals on chat-rag plus Process events (id redirect, tee, pip list, xmrig) from the AI workload.",
+  },
 ];
 
 export const POC_STORIES: PocStory[] = [
@@ -417,7 +436,16 @@ export const POC_STORIES: PocStory[] = [
     blurb: "Prompt abuse through the open chat endpoint, then wipe and rebuild RAG without authentication.",
     upwindFocus: "Communication to External AI Service · AI SPM · unauthorized admin",
     pocIds: ["ai-chat-unauth", "unauth-reindex"],
-  }
+  },
+  {
+    id: "ai-supply-chain",
+    category: "ai",
+    title: "Story 2 — AI supply-chain CVEs",
+    blurb:
+      "Scanner Criticals on langchain-community (CVE-2024-5998) and chromadb (CVE-2026-45831); run the post-compromise toolkit inside chat-rag as if unsafe RAG deserialize succeeded.",
+    upwindFocus: "AI SPM package CVEs · Process toolkit on chat-rag · pair with Story 1 for identity-less AI path",
+    pocIds: ["langchain-ai"],
+  },
 ];
 
 export function getStoriesForCategory(category: PocCategory): PocStory[] {

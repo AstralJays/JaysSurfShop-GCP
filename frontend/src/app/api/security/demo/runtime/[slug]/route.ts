@@ -16,6 +16,7 @@ const PROXY_ROUTES: Record<string, string> = {
   "sa-impersonation": "/demo/exploit/sa-impersonation",
   "sa-key-theft": "/demo/exploit/sa-key-theft",
   "vm-sa-escalation": "/demo/exploit/vm-sa-escalation",
+  "langchain-ai": "/demo/exploit/langchain-ai",
 };
 
 export async function POST(

@@ -39,6 +39,8 @@ const BASE = {
 interface DemoStatus {
   gcp_runtime?: boolean;
   pillow_installed?: string | null;
+  langchain_community_version?: string | null;
+  chromadb_version?: string | null;
 }
 
 function buildFindings(
@@ -60,6 +62,28 @@ function buildFindings(
     cves.push({
       cve: "CVE-2023-50447",
       package: `pillow ${pillow}`,
+      severity: "HIGH",
+      service: "chat-rag",
+      active: true,
+      exploitable: true,
+    });
+  }
+  const langchain = demo.langchain_community_version ?? null;
+  if (langchain) {
+    cves.push({
+      cve: "CVE-2024-5998",
+      package: `langchain-community ${langchain}`,
+      severity: "HIGH",
+      service: "chat-rag",
+      active: true,
+      exploitable: true,
+    });
+  }
+  const chromadb = demo.chromadb_version ?? null;
+  if (chromadb) {
+    cves.push({
+      cve: "CVE-2026-45831",
+      package: `chromadb ${chromadb}`,
       severity: "HIGH",
       service: "chat-rag",
       active: true,

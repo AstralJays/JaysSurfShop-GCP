@@ -200,7 +200,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "cve-probe-story",
     category: "container",
     cve: "CVE-2023-50447",
-    title: "CVE probe → Threat Story bait",
+    title: "Threat Story recipe — CVE Exploitation Probing",
     method: "POST",
     apiPath: "/api/security/demo/runtime/cve-probe-story",
     requiresPillow: false,
@@ -212,9 +212,9 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Drift",
     ],
     description:
-      "One-click replay of the Jul-7 Threat Story sequence on chat-rag: CVE-named id redirect, shell pipe, exec -a xmrig, pip list, renamed miner. Detections first; Story may lag minutes.",
+      "One-click Jul-7 Upwind Threat Story cluster on chat-rag: Pillow CVE id file, shell pipe/tee, exec -a xmrig + mining DNS, pip list. Matches Suspicious CVE Exploitation Probing.",
     outcome:
-      "Same Process cluster as ‘Suspicious CVE Exploitation Probing in Container’ — best on GKE sensor, then ECS/ACA tracer.",
+      "Upwind Threat Story on GKE (sensor). On ECS/ACA expect crypto Detection + Process Events.",
   },
   {
     id: "cryptominer-sim",
@@ -381,12 +381,13 @@ export const POC_STORIES: PocStory[] = [
   {
     id: "cve-probing-story",
     category: "container",
-    title: "Chain 0 — Threat Story bait (chat-rag)",
+    title: "Threat Story — Suspicious CVE Exploitation Probing",
     blurb:
-      "One click on chat-rag replays the Jul-7 Upwind Threat Story process cluster. Use this when you need a Story, not just alerts.",
+      "The Jul-7 Upwind Story recipe on chat-rag: Pillow CVE → shell pipe → xmrig rename → pip list. This is what Threats → Stories shows.",
     underTheHood:
-      "chat-rag runs a fixed subprocess sequence that mimics CVE exploitation probing: write an id-output bait file, pipe shell traffic, spawn a process named like xmrig, then invoke pip. No real exploit payload—just correlated Process signals on one GKE workload so Upwind can cluster a Threat Story (sensor is strongest here).",
-    upwindFocus: "Threat Stories correlation · Drift / crypto / shell detections on one workload",
+      "Replays the exact process cluster from that Story’s timeline: real Pillow ImageMath RCE writing /tmp/jss-cve-2023-50447-id.txt, then id|tee, discrete id, sh -c 'exec -a xmrig sleep 3' with mining-pool DNS, then pip list. Runs on chat-rag so the eBPF sensor (GKE) can correlate Drift detections into one Story. Close the existing Open Story in Upwind if you need a brand-new row — replaying often won’t bump Last seen.",
+    upwindFocus:
+      "Threats → Stories → Suspicious CVE Exploitation Probing (GKE best). Timeline: id redirect, tee, xmrig, pip.",
     pocIds: ["cve-probe-story"],
   },
   {

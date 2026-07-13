@@ -66,6 +66,22 @@ function buildFindings(
       exploitable: true,
     });
   }
+  cves.push({
+    cve: "CVE-2025-55182",
+    package: "next 15.1.0 / react 19.0.0",
+    severity: "Critical",
+    service: "frontend",
+    active: true,
+    exploitable: true,
+  });
+  cves.push({
+    cve: "CVE-2025-66478",
+    package: "next 15.1.0 (App Router RSC)",
+    severity: "Critical",
+    service: "frontend",
+    active: true,
+    exploitable: true,
+  });
   if (pyyaml && orderWebhookConfigured) {
     cves.push({
       cve: "CVE-2020-14343",

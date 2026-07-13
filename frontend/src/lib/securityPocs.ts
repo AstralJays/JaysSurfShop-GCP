@@ -1,4 +1,4 @@
-export type PocCategory = "cloud-xdr" | "container-runtime" | "ai";
+export type PocCategory = "container" | "serverless" | "cloud-xdr" | "ai";
 
 export interface PocStory {
   id: string;
@@ -31,16 +31,22 @@ export const POC_CATEGORIES: Array<{
   blurb: string;
 }> = [
   {
+    id: "container",
+    label: "Container",
+    blurb:
+      "Frontend + chat-rag on GKE — React2Shell / Pillow initial access, then eBPF sensor toolkit and metadata pivot.",
+  },
+  {
+    id: "serverless",
+    label: "Serverless",
+    blurb:
+      "order-webhook Cloud Run — poisoned checkout PyYAML MITRE chain with tracer Process/File/API/DNS signals.",
+  },
+  {
     id: "cloud-xdr",
     label: "Cloud XDR",
     blurb:
       "Two identity paths after compromise — runtime SA data access or dev SA key → impersonation → GCS exfiltration.",
-  },
-  {
-    id: "container-runtime",
-    label: "Container Runtime",
-    blurb:
-      "Ordered stories from CVE initial access through post-exploit toolkit — run steps in sequence for correlated Upwind Stories.",
   },
   {
     id: "ai",
@@ -126,7 +132,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
   // Container Runtime
   {
     id: "metadata-creds",
-    category: "container-runtime",
+    category: "container",
     cve: "T1552.005",
     title: "Metadata server token theft",
     method: "POST",
@@ -138,9 +144,28 @@ export const SECURITY_POCS: SecurityPoc[] = [
     outcome:
       "Redacted access token + metadata curl + IP lookup DNS/curl — run after Pillow RCE.",
   },
+
+  {
+    id: "react2shell",
+    category: "container",
+    cve: "CVE-2025-55182",
+    title: "React2Shell → process toolkit",
+    method: "POST",
+    apiPath: "/api/security/demo/react2shell",
+    upwindPolicies: [
+      "Operating system utilities processes",
+      "Shell Process Redirect",
+      "Crypto mining threats",
+      "Sensitive file access",
+    ],
+    description:
+      "React2Shell (CVE-2025-55182 / CVE-2025-66478) on Next.js App Router — workshop harness runs the post-RCE toolkit inside the frontend Node process (id, shell pipe, renamed downloader, sensitive cat, miner).",
+    outcome:
+      "Process events from the frontend container. SCA shows Critical on next@15.1.0 / react@19.0.0. Continue with metadata → Cloud XDR.",
+  },
   {
     id: "pillow-rce",
-    category: "container-runtime",
+    category: "container",
     cve: "CVE-2023-50447",
     title: "Pillow RCE",
     method: "POST",
@@ -156,7 +181,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
   },
   {
     id: "shell-pipe",
-    category: "container-runtime",
+    category: "container",
     cve: "CWE-78",
     title: "Shell pipe redirect",
     method: "POST",
@@ -171,7 +196,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
   },
   {
     id: "cryptominer-sim",
-    category: "container-runtime",
+    category: "container",
     cve: "CWE-400",
     title: "Crypto miner simulation",
     method: "POST",
@@ -183,7 +208,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
   },
   {
     id: "curl-pipe-sh",
-    category: "container-runtime",
+    category: "container",
     cve: "T1059 / T1105",
     title: "curl | sh supply chain",
     method: "POST",
@@ -195,7 +220,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
   },
   {
     id: "renamed-downloader",
-    category: "container-runtime",
+    category: "container",
     cve: "T1036 / T1105",
     title: "Renamed downloader",
     method: "POST",
@@ -207,7 +232,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
   },
   {
     id: "package-manager",
-    category: "container-runtime",
+    category: "container",
     cve: "CWE-494",
     title: "Package manager in container",
     method: "POST",
@@ -218,7 +243,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
   },
   {
     id: "sensitive-file-cat",
-    category: "container-runtime",
+    category: "container",
     cve: "T1005",
     title: "Sensitive file via cat",
     method: "POST",
@@ -235,7 +260,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
   },
   {
     id: "path-traversal",
-    category: "container-runtime",
+    category: "container",
     cve: "CVE-2021-41773",
     title: "Path traversal",
     method: "GET",
@@ -252,7 +277,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
   },
   {
     id: "shell-pipe-cloudrun",
-    category: "container-runtime",
+    category: "serverless",
     cve: "T1059",
     title: "Shell pipe redirect (Cloud Run)",
     method: "POST",
@@ -265,7 +290,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
   },
   {
     id: "order-yaml-checkout",
-    category: "container-runtime",
+    category: "serverless",
     cve: "CVE-2020-14343",
     title: "Serverless tracer kill chain (checkout)",
     method: "POST",
@@ -313,13 +338,13 @@ export const SECURITY_POCS: SecurityPoc[] = [
 
 export const POC_STORIES: PocStory[] = [
   {
-    id: "container-compromise",
-    category: "container-runtime",
-    title: "Story 1 — CVE to cloud pivot",
+    id: "react2shell-pivot",
+    category: "container",
+    title: "Story 1 — React2Shell to cloud pivot",
     blurb:
-      "Exploit Pillow RCE, harvest secrets on disk, probe host paths, then curl the metadata server for an OAuth token.",
-    upwindFocus: "Process events → sensitive file reads → GCP credentials / metadata access",
-    pocIds: ["pillow-rce", "path-traversal", "sensitive-file-cat", "metadata-creds"],
+      "Unauthenticated RSC RCE on the frontend container, post-exploit toolkit in the Next.js process, then metadata for cloud identity.",
+    upwindFocus: "Frontend Process events → credentials / metadata access → continue Cloud XDR",
+    pocIds: ["react2shell", "metadata-creds"],
     continueIn: {
       tab: "cloud-xdr",
       storyId: "identity-to-data",
@@ -327,13 +352,26 @@ export const POC_STORIES: PocStory[] = [
     },
   },
   {
-    id: "post-exploit-toolkit",
-    category: "container-runtime",
-    title: "Story 2 — Attacker toolkit & impact",
+    id: "container-compromise",
+    category: "container",
+    title: "Story 2 — Pillow CVE to host recon",
     blurb:
-      "Stage a supply-chain download, evade with a renamed binary, run crypto miner impact, install persistence tools, then syscall pipe patterns.",
-    upwindFocus:
-      "Crypto mining threats + CVE probing Story correlation on GKE sensor (pillow + miner + pip + shell)",
+      "Alternate initial access on chat-rag: Pillow RCE, path traversal, sensitive cat, then metadata.",
+    upwindFocus: "chat-rag Process events → sensitive file reads → credentials / metadata",
+    pocIds: ["pillow-rce", "path-traversal", "sensitive-file-cat", "metadata-creds"],
+    continueIn: {
+      tab: "cloud-xdr",
+      storyId: "identity-to-data",
+      label: "Continue in Cloud XDR → Story 1",
+    },
+  },
+  {
+    id: "post-exploit-toolkit",
+    category: "container",
+    title: "Story 3 — Attacker toolkit & impact",
+    blurb:
+      "Supply-chain download shape, renamed binary evasion, crypto miner Detection, package manager drift.",
+    upwindFocus: "Crypto mining threats + CVE probing Story correlation on GKE sensor",
     pocIds: [
       "curl-pipe-sh",
       "renamed-downloader",
@@ -342,16 +380,18 @@ export const POC_STORIES: PocStory[] = [
       "shell-pipe",
     ],
   },
+
   {
     id: "serverless-checkout-chain",
-    category: "container-runtime",
-    title: "Story 3 — Serverless MITRE kill chain (Cloud Run)",
+    category: "serverless",
+    title: "Story 1 — MITRE kill chain (Cloud Run checkout)",
     blurb:
-      "Single checkout on order-webhook Cloud Run tracer: T1190 public checkout → T1203 PyYAML RCE → toolkit (shell, renamed downloader, sensitive cat) → metadata OAuth token → GCS discovery → miner + EICAR impact.",
+      "Parallel RCE lane on serverless: public Cloud Run checkout → PyYAML → toolkit → metadata token → GCS → miner + EICAR.",
     upwindFocus:
-      "Tracer Process + File + API + DNS on Cloud Run · GCP credentials access · Crypto mining Detection · Cloud Audit Logs",
+      "Tracer Process + File + API + DNS on Cloud Run · Cloud Audit Logs · same MITRE shape as Container Story 1",
     pocIds: ["order-yaml-checkout"],
   },
+
   {
     id: "identity-to-data",
     category: "cloud-xdr",
@@ -377,7 +417,7 @@ export const POC_STORIES: PocStory[] = [
     blurb: "Prompt abuse through the open chat endpoint, then wipe and rebuild RAG without authentication.",
     upwindFocus: "Communication to External AI Service · AI SPM · unauthorized admin",
     pocIds: ["ai-chat-unauth", "unauth-reindex"],
-  },
+  }
 ];
 
 export function getStoriesForCategory(category: PocCategory): PocStory[] {

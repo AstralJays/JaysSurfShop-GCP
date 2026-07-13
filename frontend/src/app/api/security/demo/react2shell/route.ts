@@ -9,9 +9,14 @@ import { NextResponse } from "next/server";
  * This route runs the post-compromise process toolkit inside the Next.js Node
  * process — the same execution boundary an attacker gets after RSC Flight RCE.
  * It does not embed a public Flight protocol gadget.
+ *
+ * Process shapes intentionally match workshop Detection/Event patterns Upwind
+ * surfaces well (esp. `sh -c -- id > …` and `exec -a xmrig sleep`), not just
+ * a renamed sleep binary (crypto Detection-only).
  */
 
 const MARKER = "/tmp/jss-react2shell.txt";
+const ID_FILE = "/tmp/jss-react2shell-id.txt";
 const MINER = "/tmp/xmrig-frontend";
 const DOWNLOADER = "/tmp/.wget-frontend";
 
@@ -73,10 +78,12 @@ export async function POST() {
     exploited: true,
   });
 
-  const idStep = run(["id", "-a"]);
+  // Detection-shaped: sh -c -- id > file (matches pillow / Jul-7 Drift Detection)
+  const idRedirect = run(["sh", "-c", "--", `id > ${ID_FILE}`]);
+  const idDirect = run(["id", "-a"]);
   writeFileSync(
     MARKER,
-    `react2shell:${idStep.stdout}\nnext=${nextVersion}\n`,
+    `react2shell:${idDirect.stdout}\nnext=${nextVersion}\n`,
     "utf-8"
   );
   chain.push({
@@ -84,17 +91,26 @@ export async function POST() {
     mitre: ["T1059.004"],
     tactic: "Execution",
     action: "post_exploit_identity_probe",
-    process: idStep,
+    processes: {
+      sh_c_id_redirect: idRedirect,
+      discrete_id: idDirect,
+    },
     marker_file: MARKER,
+    id_file: ID_FILE,
   });
 
-  const shellPipe = run(["sh", "-c", `id 2>&1 | tee -a ${MARKER}`]);
+  // Shell Process Redirect + discrete tee (Events + Shell Redirect Detection)
+  const shellPipe = run(["sh", "-c", "--", `id 2>&1 | tee -a ${MARKER}`]);
+  const teePipe = run(["sh", "-c", "--", `id | tee ${MARKER}.tee`]);
   chain.push({
     step: 3,
     mitre: ["T1059.004"],
     tactic: "Execution",
     action: "shell_pipe_redirect",
-    process: shellPipe,
+    processes: {
+      shell_pipe: shellPipe,
+      tee_via_shell: teePipe,
+    },
   });
 
   const curlPath = "/usr/bin/curl";
@@ -103,7 +119,15 @@ export async function POST() {
     copyFileSync(curlPath, DOWNLOADER);
     chmodSync(DOWNLOADER, 0o755);
     const out = "/tmp/jss-react2shell-downloader.out";
-    const dl = run([DOWNLOADER, "-fsSL", "--max-time", "8", "https://icanhazip.com", "-o", out]);
+    const dl = run([
+      DOWNLOADER,
+      "-fsSL",
+      "--max-time",
+      "8",
+      "https://icanhazip.com",
+      "-o",
+      out,
+    ]);
     renamed = {
       downloader_path: DOWNLOADER,
       process: dl,
@@ -132,14 +156,16 @@ export async function POST() {
     files: sensitive,
   });
 
+  // Crypto Detection: argv0=xmrig via exec -a PLUS renamed sleep binary
   let miner: Record<string, unknown> = {};
   try {
     copyFileSync("/bin/sleep", MINER);
     chmodSync(MINER, 0o755);
     miner = {
       miner_path: MINER,
-      process: run([MINER, "2"]),
-      warning: "Synthetic xmrig — sleep binary renamed; no real mining",
+      exec_a_xmrig: run(["sh", "-c", "--", "exec -a xmrig sleep 3"]),
+      renamed_binary: run([MINER, "2"]),
+      warning: "Synthetic xmrig — exec -a + sleep binary renamed; no real mining",
     };
   } catch (err) {
     miner = { error: err instanceof Error ? err.message : String(err) };
@@ -160,17 +186,25 @@ export async function POST() {
     scope: "frontend-nextjs-container",
     instrumentation: "runs-in-nextjs-node-process",
     mitre_attack: {
-      tactics: ["Initial Access", "Execution", "Defense Evasion", "Collection", "Impact"],
+      tactics: [
+        "Initial Access",
+        "Execution",
+        "Defense Evasion",
+        "Collection",
+        "Impact",
+      ],
       techniques: ["T1190", "T1203", "T1059.004", "T1027", "T1005", "T1496"],
     },
     chain,
     narrative:
       "React2Shell (CVE-2025-55182): unauthenticated RSC Flight RCE on Next.js App Router. " +
       "This workshop harness demonstrates the post-compromise toolkit inside the frontend container " +
-      "(id → shell pipe → renamed downloader → sensitive cat → miner) — then continue to metadata / Cloud XDR.",
+      "(id redirect → shell pipe → renamed downloader → sensitive cat → miner) — then continue to metadata / Cloud XDR.",
     presenter_notes: {
       sca: "Pin next@15.1.0 and react@19.0.0 for scanner Critical findings",
-      runtime: "Process events originate from the frontend container, not chat-rag",
+      runtime:
+        "Expect Process Events for id/tee/cat AND Detections for sh -c -- id > file + crypto mining (xmrig). " +
+        "Investigation feed often highlights mining Detection first — expand Events / Process filter for the rest.",
       next_step: "Run metadata-creds PoC, then continue Cloud XDR story",
       serverless_parallel:
         "Serverless uses PyYAML checkout RCE instead — same MITRE shape, different surface",

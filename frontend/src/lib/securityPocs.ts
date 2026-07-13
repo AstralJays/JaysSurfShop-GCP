@@ -5,6 +5,8 @@ export interface PocStory {
   category: PocCategory;
   title: string;
   blurb: string;
+  /** Plain-language explanation of what the chain does under the hood. */
+  underTheHood: string;
   upwindFocus: string;
   pocIds: string[];
   continueIn?: { tab: PocCategory; storyId: string; label: string };
@@ -34,24 +36,24 @@ export const POC_CATEGORIES: Array<{
     id: "container",
     label: "Container",
     blurb:
-      "Frontend + chat-rag on GKE — React2Shell / Pillow initial access, then eBPF sensor toolkit and metadata pivot.",
+      "Attack chains on GKE frontend + chat-rag: initial access, eBPF toolkit, then metadata pivot.",
   },
   {
     id: "serverless",
     label: "Serverless",
     blurb:
-      "order-webhook Cloud Run — poisoned checkout PyYAML MITRE chain with tracer Process/File/API/DNS signals.",
+      "Attack chain on order-webhook Cloud Run — PyYAML MITRE checkout with tracer Process/File/API/DNS.",
   },
   {
     id: "cloud-xdr",
     label: "Cloud XDR",
     blurb:
-      "Two identity paths after compromise — runtime SA data access or dev SA key → impersonation → GCS exfiltration.",
+      "Continue after compromise — runtime SA data access or leaked SA key → impersonation → GCS.",
   },
   {
     id: "ai",
     label: "AI",
-    blurb: "Unauthenticated AI admin actions and prompt abuse — AI SPM audit trail.",
+    blurb: "Unauthenticated AI admin actions, prompt abuse, and AI package supply-chain harnesses.",
   },
 ];
 
@@ -379,46 +381,54 @@ export const POC_STORIES: PocStory[] = [
   {
     id: "cve-probing-story",
     category: "container",
-    title: "Story 0 — Threat Story bait (chat-rag)",
+    title: "Chain 0 — Threat Story bait (chat-rag)",
     blurb:
-      "One click on chat-rag replays the Jul-7 Upwind Threat Story process cluster (CVE id file → pipe → xmrig → pip). Use this when you need a Story, not just alerts.",
+      "One click on chat-rag replays the Jul-7 Upwind Threat Story process cluster. Use this when you need a Story, not just alerts.",
+    underTheHood:
+      "chat-rag runs a fixed subprocess sequence that mimics CVE exploitation probing: write an id-output bait file, pipe shell traffic, spawn a process named like xmrig, then invoke pip. No real exploit payload—just correlated Process signals on one GKE workload so Upwind can cluster a Threat Story (sensor is strongest here).",
     upwindFocus: "Threat Stories correlation · Drift / crypto / shell detections on one workload",
     pocIds: ["cve-probe-story"],
   },
   {
     id: "react2shell-pivot",
     category: "container",
-    title: "Story 1 — React2Shell to cloud pivot",
+    title: "Chain 1 — React2Shell to cloud pivot",
     blurb:
-      "Unauthenticated RSC RCE on the frontend container, post-exploit toolkit in the Next.js process, then metadata for cloud identity.",
+      "Unauthenticated RSC RCE on the frontend container, post-exploit toolkit, then metadata for cloud identity.",
+    underTheHood:
+      "The frontend App Router endpoint is a controlled React2Shell harness (pinned vulnerable Next/React). It executes the post-RCE toolkit inside the Node process, then the next step hits GCE metadata for a service-account token. Process events land on the frontend; Cloud XDR continues with the stolen identity.",
     upwindFocus: "Frontend Process events → credentials / metadata access → continue Cloud XDR",
     pocIds: ["react2shell", "metadata-creds"],
     continueIn: {
       tab: "cloud-xdr",
       storyId: "identity-to-data",
-      label: "Continue in Cloud XDR → Story 1 (Runtime SA to GCS exfiltration)",
+      label: "Continue in Cloud XDR → Chain 1 (Runtime SA to GCS exfiltration)",
     },
   },
   {
     id: "container-compromise",
     category: "container",
-    title: "Story 2 — Pillow CVE to host recon",
+    title: "Chain 2 — Pillow CVE to host recon",
     blurb:
       "Alternate initial access on chat-rag: Pillow RCE, path traversal, sensitive cat, then metadata.",
+    underTheHood:
+      "chat-rag deliberately loads vulnerable Pillow and evals ImageMath to get code execution, then reads files off-path and cats sensitive paths before querying metadata. Same cloud-pivot ending as Chain 1, different entry point and workload (Python vs Node).",
     upwindFocus: "chat-rag Process events → sensitive file reads → credentials / metadata",
     pocIds: ["pillow-rce", "path-traversal", "sensitive-file-cat", "metadata-creds"],
     continueIn: {
       tab: "cloud-xdr",
       storyId: "identity-to-data",
-      label: "Continue in Cloud XDR → Story 1",
+      label: "Continue in Cloud XDR → Chain 1",
     },
   },
   {
     id: "post-exploit-toolkit",
     category: "container",
-    title: "Story 3 — Attacker toolkit & impact",
+    title: "Chain 3 — Attacker toolkit & impact",
     blurb:
-      "Supply-chain download shape, renamed binary evasion, crypto miner Detection, package manager drift.",
+      "Supply-chain download shape, renamed binary evasion, crypto miner Detection, package manager drift, shell redirect.",
+    underTheHood:
+      "After initial access is assumed, these steps run discrete attacker tooling patterns on GKE (sensor): curl|sh-style fetch, argv0 spoofing, xmrig-named process, package-manager activity, and shell-pipe redirect. Strongest place to show Detection + Story correlation.",
     upwindFocus: "Crypto mining threats + CVE probing Story correlation on GKE sensor",
     pocIds: [
       "curl-pipe-sh",
@@ -428,51 +438,59 @@ export const POC_STORIES: PocStory[] = [
       "shell-pipe",
     ],
   },
-
   {
     id: "serverless-checkout-chain",
     category: "serverless",
-    title: "Story 1 — MITRE kill chain (Cloud Run checkout)",
+    title: "Chain 1 — MITRE kill chain (Cloud Run checkout)",
     blurb:
-      "Parallel RCE lane on serverless: public Cloud Run checkout → PyYAML → toolkit → metadata token → GCS → miner + EICAR.",
+      "Public Cloud Run checkout → PyYAML → toolkit → metadata token → GCS → miner + EICAR.",
+    underTheHood:
+      "order-webhook Cloud Run accepts crafted YAML in the checkout body. Unsafe load yields RCE-shaped behavior, then metadata token use against GCS and a miner/EICAR footprint. Tracer + Cloud Audit Logs cover this plane—same MITRE shape as Container Chain 1.",
     upwindFocus:
-      "Tracer Process + File + API + DNS on Cloud Run · Cloud Audit Logs · same MITRE shape as Container Story 1",
+      "Tracer Process + File + API + DNS on Cloud Run · Cloud Audit Logs · same MITRE shape as Container Chain 1",
     pocIds: ["order-yaml-checkout"],
   },
-
   {
     id: "identity-to-data",
     category: "cloud-xdr",
-    title: "Story 1 — Runtime SA to GCS exfiltration",
+    title: "Chain 1 — Runtime SA to GCS exfiltration",
     blurb:
-      "After metadata token theft in Container Story 1, abuse the overprivileged GKE service account and probe GCS.",
+      "After metadata token theft in Container Chain 1, abuse the overprivileged GKE service account and probe GCS.",
+    underTheHood:
+      "Uses the compromised workload’s runtime service-account token to call overly permissive APIs and list/get GCS objects. Pure cloud control-plane abuse correlated in Audit Logs / identity graph.",
     upwindFocus: "Cloud Audit Logs storage · Secret Manager · service account abuse chain",
     pocIds: ["iam-role-abuse", "gcs-exfil"],
   },
   {
     id: "sa-escalation",
     category: "cloud-xdr",
-    title: "Story 2 — Dev SA key to impersonation",
+    title: "Chain 2 — Dev SA key to impersonation",
     blurb:
       "Alternate kill chain: leaked dev SA JSON key → impersonate production SA → confirm VM+actAs escalation path.",
+    underTheHood:
+      "Authenticates with a planted/leaked user-managed SA key, generates tokens for a more privileged SA via iamcredentials, then probes actAs/VM escalation and GCS. Long-lived key risk vs ephemeral metadata tokens from Chain 1.",
     upwindFocus: "Dormant key usage · iamcredentials GenerateAccessToken · identity graph",
     pocIds: ["sa-key-theft", "sa-impersonation", "vm-sa-escalation", "gcs-exfil"],
   },
   {
     id: "ai-data-plane",
     category: "ai",
-    title: "Story 1 — Unauthenticated AI abuse",
+    title: "Chain 1 — Unauthenticated AI abuse",
     blurb: "Prompt abuse through the open chat endpoint, then wipe and rebuild RAG without authentication.",
+    underTheHood:
+      "Hits /api/chat with a prompt-injection-style request (egress to OpenAI) then calls the unauthenticated reindex admin path to wipe/rebuild embeddings. Demonstrates AI SPM + no-user-identity admin on the AI data plane—not a package CVE.",
     upwindFocus: "Communication to External AI Service · AI SPM · unauthorized admin",
     pocIds: ["ai-chat-unauth", "unauth-reindex"],
   },
   {
     id: "ai-supply-chain",
     category: "ai",
-    title: "Story 2 — AI supply-chain CVEs",
+    title: "Chain 2 — AI supply-chain CVEs",
     blurb:
-      "Scanner Criticals on langchain-community (CVE-2024-5998) and chromadb (CVE-2026-45831); run the post-compromise toolkit inside chat-rag as if unsafe RAG deserialize succeeded.",
-    upwindFocus: "AI SPM package CVEs · Process toolkit on chat-rag · pair with Story 1 for identity-less AI path",
+      "Scanner Criticals on langchain-community and chromadb; run the post-compromise toolkit as if unsafe RAG deserialize succeeded.",
+    underTheHood:
+      "chat-rag pins langchain-community (CVE-2024-5998 FAISS pickle) and chromadb (CVE-2026-45831) for SCA. The demo harness then runs the same Process toolkit inside the AI workload—without shipping a live pickle gadget—so you can show package Criticals plus runtime Process signals together.",
+    upwindFocus: "AI SPM package CVEs · Process toolkit on chat-rag · pair with Chain 1 for identity-less AI path",
     pocIds: ["langchain-ai"],
   },
 ];

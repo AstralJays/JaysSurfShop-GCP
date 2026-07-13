@@ -55,18 +55,6 @@ interface PostureData {
   };
 }
 
-function StatusBadge({ active }: { active: boolean }) {
-  return (
-    <span
-      className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-        active ? "bg-coral-100 text-coral-800" : "bg-teal-100 text-teal-800"
-      }`}
-    >
-      {active ? "Active" : "Inactive"}
-    </span>
-  );
-}
-
 function Severity({ level }: { level: string }) {
   const colors: Record<string, string> = {
     Critical: "text-coral-700",
@@ -77,7 +65,7 @@ function Severity({ level }: { level: string }) {
   return <span className={`text-xs font-medium ${colors[level] || "text-ocean-600"}`}>{level}</span>;
 }
 
-function PocCard({
+function ChainStep({
   poc,
   step,
   totalSteps,
@@ -87,50 +75,38 @@ function PocCard({
   onRun,
 }: {
   poc: SecurityPoc;
-  step?: number;
-  totalSteps?: number;
+  step: number;
+  totalSteps: number;
   blocked: boolean;
   running: boolean;
   result?: { ok: boolean; data: unknown };
   onRun: () => void;
 }) {
   return (
-    <div className="card p-4">
+    <div className="rounded-lg border border-ocean-100 bg-white px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          {step != null && totalSteps != null && (
-            <p className="text-[10px] font-bold uppercase tracking-wide text-ocean-500 mb-1">
-              Step {step} of {totalSteps}
-            </p>
-          )}
-          <p className="font-medium text-ocean-900">{poc.title}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-ocean-400">
+            Step {step}/{totalSteps}
+          </p>
+          <p className="font-medium text-ocean-900 mt-0.5">{poc.title}</p>
           <p className="text-xs font-mono text-ocean-500">{poc.cve}</p>
-          <p className="text-sm text-ocean-700 mt-2">{poc.description}</p>
-          <p className="text-xs text-ocean-500 mt-1">
-            <span className="font-medium text-ocean-600">Outcome: </span>
-            {poc.outcome}
-          </p>
-          <p className="text-xs text-ocean-500 mt-2">
-            <span className="font-medium text-ocean-600">Upwind: </span>
-            {poc.upwindPolicies.join(" · ")}
-          </p>
+          <p className="text-sm text-ocean-600 mt-1.5">{poc.description}</p>
         </div>
         <button
           type="button"
           disabled={blocked || running}
           onClick={onRun}
-          className="btn-primary text-xs px-4 py-2 disabled:opacity-40 shrink-0"
+          className="btn-primary text-xs px-3 py-1.5 disabled:opacity-40 shrink-0"
         >
-          {running ? "Running…" : "Run PoC"}
+          {running ? "Running…" : "Run step"}
         </button>
       </div>
       {blocked && (
-        <p className="text-xs text-ocean-400 mt-2">
-          Unavailable in this environment (requires GCP runtime, Cloud Function, or vulnerable image).
-        </p>
+        <p className="text-xs text-ocean-400 mt-2">Unavailable in this environment.</p>
       )}
       {result && (
-        <pre className="mt-3 text-xs font-mono bg-ocean-50 rounded-lg p-3 overflow-x-auto max-h-48 overflow-y-auto">
+        <pre className="mt-2 text-xs font-mono bg-ocean-50 rounded-lg p-2.5 overflow-x-auto max-h-36 overflow-y-auto">
           {JSON.stringify(result.data, null, 2)}
         </pre>
       )}
@@ -138,14 +114,14 @@ function PocCard({
   );
 }
 
-function StorySection({
+function AttackChain({
   story,
   pocById,
   findings,
   running,
   results,
   onRun,
-  onRunStory,
+  onRunChain,
   onContinue,
 }: {
   story: PocStory;
@@ -154,61 +130,85 @@ function StorySection({
   running: string | null;
   results: Record<string, { ok: boolean; data: unknown }>;
   onRun: (poc: SecurityPoc) => void;
-  onRunStory: (story: PocStory) => void;
+  onRunChain: (story: PocStory) => void;
   onContinue?: (tab: PocCategory) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const storyPocs = story.pocIds
     .map((id) => pocById.get(id))
     .filter((poc): poc is SecurityPoc => poc != null);
   const runnableCount = storyPocs.filter((poc) => !isPocBlocked(poc, findings)).length;
 
   return (
-    <section id={`story-${story.id}`} className="mb-8">
-      <div className="flex items-start justify-between gap-4 mb-3">
-        <div>
-          <h3 className="font-display text-lg font-bold text-ocean-900">{story.title}</h3>
-          <p className="text-sm text-ocean-600 mt-1">{story.blurb}</p>
+    <section className="rounded-xl border border-ocean-100 bg-white mb-4 overflow-hidden">
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="font-display text-lg font-bold text-ocean-900">{story.title}</h3>
+            <p className="text-sm text-ocean-600 mt-1">{story.blurb}</p>
+          </div>
+          <button
+            type="button"
+            disabled={running != null || runnableCount === 0}
+            onClick={() => onRunChain(story)}
+            className="btn-secondary text-xs px-4 py-2 disabled:opacity-40 shrink-0"
+          >
+            {running && story.pocIds.includes(running)
+              ? "Running chain…"
+              : `Run attack chain (${runnableCount})`}
+          </button>
+        </div>
+
+        <div className="mt-4 rounded-lg bg-ocean-50 border border-ocean-100 px-3.5 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-ocean-500 mb-1">
+            Under the hood
+          </p>
+          <p className="text-sm text-ocean-800 leading-relaxed">{story.underTheHood}</p>
           <p className="text-xs text-ocean-500 mt-2">
-            <span className="font-medium text-ocean-700">Upwind focus: </span>
+            <span className="font-medium text-ocean-600">Watch in Upwind: </span>
             {story.upwindFocus}
           </p>
-          {story.continueIn && onContinue && (
-            <button
-              type="button"
-              onClick={() => onContinue(story.continueIn!.tab)}
-              className="text-xs text-teal-700 font-medium mt-2 hover:underline"
-            >
-              {story.continueIn.label} →
-            </button>
-          )}
         </div>
+
+        {story.continueIn && onContinue && (
+          <button
+            type="button"
+            onClick={() => onContinue(story.continueIn!.tab)}
+            className="text-xs text-teal-700 font-medium mt-3 hover:underline"
+          >
+            {story.continueIn.label} →
+          </button>
+        )}
+
         <button
           type="button"
-          disabled={running != null || runnableCount === 0}
-          onClick={() => onRunStory(story)}
-          className="btn-secondary text-xs px-4 py-2 disabled:opacity-40 shrink-0"
+          onClick={() => setOpen((v) => !v)}
+          className="mt-3 text-xs font-medium text-ocean-600 hover:text-ocean-900"
         >
-          Run story ({runnableCount})
+          {open ? "Hide steps" : `Show ${story.pocIds.length} steps`}
         </button>
       </div>
-      <div className="space-y-3 border-l-2 border-ocean-100 pl-4 ml-1">
-        {story.pocIds.map((pocId, index) => {
-          const poc = pocById.get(pocId);
-          if (!poc) return null;
-          return (
-            <PocCard
-              key={poc.id}
-              poc={poc}
-              step={index + 1}
-              totalSteps={story.pocIds.length}
-              blocked={isPocBlocked(poc, findings)}
-              running={running === poc.id}
-              result={results[poc.id]}
-              onRun={() => onRun(poc)}
-            />
-          );
-        })}
-      </div>
+
+      {open && (
+        <div className="border-t border-ocean-100 bg-ocean-50/40 px-4 sm:px-5 py-3 space-y-2">
+          {story.pocIds.map((pocId, index) => {
+            const poc = pocById.get(pocId);
+            if (!poc) return null;
+            return (
+              <ChainStep
+                key={poc.id}
+                poc={poc}
+                step={index + 1}
+                totalSteps={story.pocIds.length}
+                blocked={isPocBlocked(poc, findings)}
+                running={running === poc.id}
+                result={results[poc.id]}
+                onRun={() => onRun(poc)}
+              />
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
@@ -218,6 +218,7 @@ export default function SecurityPage() {
   const [results, setResults] = useState<Record<string, { ok: boolean; data: unknown }>>({});
   const [running, setRunning] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PocCategory>("container");
+  const [showDetails, setShowDetails] = useState(false);
 
   const pocById = useMemo(
     () => new Map(SECURITY_POCS.map((poc) => [poc.id, poc])),
@@ -251,7 +252,7 @@ export default function SecurityPage() {
     }
   }
 
-  async function runStory(story: PocStory) {
+  async function runChain(story: PocStory) {
     if (!posture) return;
     for (const pocId of story.pocIds) {
       const poc = pocById.get(pocId);
@@ -264,14 +265,14 @@ export default function SecurityPage() {
   function continueToTab(tab: PocCategory) {
     setActiveTab(tab);
     window.setTimeout(() => {
-      document.getElementById("poc-stories")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("attack-chains")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
   }
 
   if (!posture) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-16 text-center text-ocean-500">
-        Loading posture…
+      <div className="mx-auto max-w-3xl px-4 py-16 text-center text-ocean-500">
+        Loading security lab…
       </div>
     );
   }
@@ -282,159 +283,141 @@ export default function SecurityPage() {
   const activeCategory = POC_CATEGORIES.find((c) => c.id === activeTab)!;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-ocean-900">
-          Security Posture &amp; Monitoring Demo
-        </h1>
+        <h1 className="font-display text-3xl font-bold text-ocean-900">Security lab</h1>
         <p className="mt-2 text-ocean-600">
-          Reference deployment for Container, Serverless, Cloud XDR, and AI SPM workshop flows.
+          Run attack chains for Container, Serverless, Cloud XDR, and AI — then follow the signals in Upwind.
         </p>
-        <div className="mt-4 flex flex-wrap gap-3 text-sm">
-          {[
-            { label: "Application", value: posture.application },
-            { label: "Environment", value: posture.environment },
-            { label: "Deployment", value: posture.deployment_id },
-            { label: "Compute", value: posture.compute },
-          ].map((m) => (
-            <span key={m.label} className="rounded-lg bg-ocean-50 px-3 py-1.5 text-ocean-700">
-              <span className="text-ocean-500">{m.label}: </span>
-              <span className="font-medium">{m.value}</span>
-            </span>
-          ))}
-        </div>
+        <p className="mt-3 text-sm text-ocean-500">
+          <span className="font-medium text-ocean-700">{posture.compute}</span>
+          <span className="mx-1.5">·</span>
+          {posture.environment}
+          <span className="mx-1.5">·</span>
+          {posture.application}
+        </p>
       </div>
 
-      <section className="card p-5 mb-6">
-        <h2 className="font-display text-lg font-bold text-ocean-900 mb-1">CSPM Misconfigurations</h2>
-        <p className="text-xs text-ocean-500 mb-4">{activeCspm.length} active in this environment</p>
-        <div className="space-y-2">
-          {findings.cspm_misconfigurations.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-start justify-between gap-3 py-2 border-b border-ocean-50 last:border-0"
-            >
-              <div>
-                <p className="text-sm text-ocean-900">{m.finding}</p>
-                <p className="text-xs text-ocean-500 mt-0.5">{m.trigger}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Severity level={m.severity} />
-                <StatusBadge active={m.active} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="card p-5 mb-6">
-        <h2 className="font-display text-lg font-bold text-ocean-900 mb-4">Attack Surface Paths</h2>
-        <div className="grid sm:grid-cols-2 gap-6">
+      <section className="rounded-xl border border-ocean-100 bg-white p-4 mb-8">
+        <div className="grid grid-cols-3 gap-3 text-center">
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ocean-500 mb-2">Public</h3>
-            <ul className="space-y-1">
-              {posture.attack_surface.public.map((ep) => (
-                <li key={ep.path} className="text-sm">
-                  <code className="font-mono text-ocean-800">{ep.path}</code>
-                  <span className="text-ocean-500 text-xs ml-1">— {ep.note}</span>
-                </li>
-              ))}
-            </ul>
+            <p className="text-2xl font-display font-bold text-ocean-900">{findings.active_cves.length}</p>
+            <p className="text-xs text-ocean-500 mt-0.5">Active CVEs</p>
           </div>
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ocean-500 mb-2">
-              Private / internal
-            </h3>
-            <ul className="space-y-1">
-              {posture.attack_surface.private.map((ep) => (
-                <li key={ep.path} className="text-sm">
-                  <code className="font-mono text-ocean-800">{ep.path}</code>
-                  <span className="text-ocean-500 text-xs ml-1">— {ep.note}</span>
-                </li>
-              ))}
-            </ul>
+            <p className="text-2xl font-display font-bold text-ocean-900">{activeCspm.length}</p>
+            <p className="text-xs text-ocean-500 mt-0.5">CSPM findings</p>
+          </div>
+          <div>
+            <p className="text-2xl font-display font-bold text-ocean-900">{activeIam.length}</p>
+            <p className="text-xs text-ocean-500 mt-0.5">IAM risks</p>
           </div>
         </div>
-      </section>
-
-      <section className="card p-5 mb-6">
-        <h2 className="font-display text-lg font-bold text-ocean-900 mb-1">Active CVEs</h2>
-        {findings.active_cves.length === 0 ? (
-          <p className="text-sm text-ocean-600">None detected</p>
-        ) : (
-          findings.active_cves.map((c) => (
-            <div key={c.cve + c.service} className="flex items-center justify-between gap-3 py-2">
-              <div>
-                <p className="text-sm font-mono text-ocean-900">{c.cve}</p>
-                <p className="text-xs text-ocean-500">
-                  {c.package} · {c.service}
-                </p>
-              </div>
-              <Severity level={c.severity} />
+        {findings.active_cves.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5 justify-center">
+            {findings.active_cves.slice(0, 6).map((c) => (
+              <span
+                key={c.cve + c.service}
+                className="rounded-md bg-ocean-50 px-2 py-1 text-[11px] font-mono text-ocean-700"
+              >
+                {c.cve}
+              </span>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowDetails((v) => !v)}
+          className="mt-3 w-full text-xs font-medium text-ocean-600 hover:text-ocean-900"
+        >
+          {showDetails ? "Hide posture details" : "Show posture details"}
+        </button>
+        {showDetails && (
+          <div className="mt-4 pt-4 border-t border-ocean-100 space-y-5 text-left">
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-ocean-500 mb-2">CVEs</h3>
+              {findings.active_cves.map((c) => (
+                <div key={c.cve + c.service} className="flex justify-between gap-2 py-1.5 text-sm">
+                  <span>
+                    <span className="font-mono">{c.cve}</span>
+                    <span className="text-ocean-500 text-xs ml-2">
+                      {c.package} · {c.service}
+                    </span>
+                  </span>
+                  <Severity level={c.severity} />
+                </div>
+              ))}
             </div>
-          ))
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-ocean-500 mb-2">CSPM</h3>
+              {findings.cspm_misconfigurations
+                .filter((m) => m.active)
+                .map((m) => (
+                  <p key={m.id} className="text-sm text-ocean-800 py-1">
+                    {m.finding}{" "}
+                    <Severity level={m.severity} />
+                  </p>
+                ))}
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-ocean-500 mb-2">IAM</h3>
+              {findings.iam_misconfigurations
+                .filter((m) => m.active && m.severity !== "Info")
+                .map((m, i) => (
+                  <p key={`${m.role}-${i}`} className="text-sm text-ocean-800 py-1">
+                    <span className="font-mono text-xs">{m.role}</span> — {m.finding}
+                  </p>
+                ))}
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-ocean-500 mb-2">
+                Public attack surface
+              </h3>
+              <ul className="space-y-1">
+                {posture.attack_surface.public.slice(0, 8).map((ep) => (
+                  <li key={ep.path} className="text-xs">
+                    <code className="font-mono text-ocean-800">{ep.path}</code>
+                    <span className="text-ocean-500"> — {ep.note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         )}
       </section>
 
-      <section className="card p-5 mb-8">
-        <h2 className="font-display text-lg font-bold text-ocean-900 mb-1">IAM Misconfigurations</h2>
-        <p className="text-xs text-ocean-500 mb-4">
-          {activeIam.length} active overprivileged role{activeIam.length !== 1 && "s"}
-        </p>
-        <div className="space-y-3">
-          {findings.iam_misconfigurations.map((m, i) => (
-            <div
-              key={`${m.role}-${i}`}
-              className="flex items-start justify-between gap-3 py-2 border-b border-ocean-50 last:border-0"
-            >
-              <div>
-                <p className="text-sm font-mono text-ocean-800">{m.role}</p>
-                <p className="text-sm text-ocean-900">{m.finding}</p>
-                <p className="text-xs text-ocean-500">{m.details}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Severity level={m.severity} />
-                <StatusBadge active={m.active} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="poc-stories" className="mb-8">
-        <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">PoC Attack Stories</h2>
+      <section id="attack-chains" className="mb-8">
+        <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Attack chains</h2>
         <p className="text-sm text-ocean-600 mb-4">
-          Run each story in order — steps build correlated Upwind Events and Detections. Synthetic data only.
+          Each chain runs ordered steps on a real workload. Read “Under the hood,” then run the full chain or individual steps.
         </p>
 
-        <div className="flex flex-wrap gap-2 mb-4 border-b border-ocean-100 pb-1">
+        <div className="flex flex-wrap gap-2 mb-5">
           {POC_CATEGORIES.map((cat) => {
-            const storyCount = getStoriesForCategory(cat.id).length;
+            const chainCount = getStoriesForCategory(cat.id).length;
             const active = activeTab === cat.id;
             return (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => setActiveTab(cat.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                  active
-                    ? "bg-ocean-900 text-white"
-                    : "text-ocean-600 hover:bg-ocean-50"
+                className={`px-3.5 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  active ? "bg-ocean-900 text-white" : "bg-ocean-50 text-ocean-700 hover:bg-ocean-100"
                 }`}
               >
                 {cat.label}
                 <span className={`ml-1.5 text-xs ${active ? "text-ocean-200" : "text-ocean-400"}`}>
-                  ({storyCount} {storyCount === 1 ? "story" : "stories"})
+                  {chainCount}
                 </span>
               </button>
             );
           })}
         </div>
 
-        <p className="text-xs text-ocean-500 mb-6">{activeCategory.blurb}</p>
+        <p className="text-xs text-ocean-500 mb-4">{activeCategory.blurb}</p>
 
         {activeStories.map((story) => (
-          <StorySection
+          <AttackChain
             key={story.id}
             story={story}
             pocById={pocById}
@@ -442,7 +425,7 @@ export default function SecurityPage() {
             running={running}
             results={results}
             onRun={runPoC}
-            onRunStory={runStory}
+            onRunChain={runChain}
             onContinue={continueToTab}
           />
         ))}

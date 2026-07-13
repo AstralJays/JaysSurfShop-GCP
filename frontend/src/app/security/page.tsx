@@ -161,12 +161,12 @@ function AttackChain({
 
         <div className="mt-4 rounded-lg bg-ocean-50 border border-ocean-100 px-3.5 py-3">
           <p className="text-[10px] font-bold uppercase tracking-wide text-ocean-500 mb-1">
-            Under the hood
+            What this does
           </p>
           <p className="text-sm text-ocean-800 leading-relaxed">{story.underTheHood}</p>
           <p className="text-xs text-ocean-500 mt-2">
-            <span className="font-medium text-ocean-600">Watch in Upwind: </span>
-            {story.upwindFocus}
+            <span className="font-medium text-ocean-600">Detection tip: </span>
+            {story.detectionTip}
           </p>
         </div>
 
@@ -287,7 +287,7 @@ export default function SecurityPage() {
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold text-ocean-900">Security lab</h1>
         <p className="mt-2 text-ocean-600">
-          Run attack chains for Container, Serverless, Cloud XDR, and AI — then follow the signals in Upwind.
+          Pick a tab, read what the chain does, then run it on the live workloads.
         </p>
         <p className="mt-3 text-sm text-ocean-500">
           <span className="font-medium text-ocean-700">{posture.compute}</span>
@@ -389,7 +389,7 @@ export default function SecurityPage() {
       <section id="attack-chains" className="mb-8">
         <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Attack chains</h2>
         <p className="text-sm text-ocean-600 mb-4">
-          Each chain runs ordered steps on a real workload. Read “Under the hood,” then run the full chain or individual steps.
+          Each chain is a sequenced attack path. Read what it does, run the full chain, or expand steps and run one at a time.
         </p>
 
         <div className="flex flex-wrap gap-2 mb-5">

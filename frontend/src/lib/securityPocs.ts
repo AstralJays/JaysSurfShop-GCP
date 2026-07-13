@@ -267,20 +267,23 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "order-yaml-checkout",
     category: "container-runtime",
     cve: "CVE-2020-14343",
-    title: "Poisoned checkout fulfillment",
+    title: "Serverless tracer kill chain (checkout)",
     method: "POST",
     apiPath: "/api/security/demo/order-yaml-checkout",
     functionOnly: true,
     upwindPolicies: [
+      "API custom rules — poisoned checkout",
       "CVE-2020-14343 / unsafe deserialization",
       "Shell Process Redirect",
       "GCP credentials access",
+      "Crypto mining threats",
+      "Malware protection",
       "Cloud Audit Logs storage",
     ],
     description:
-      "Places a real order via POST /api/checkout with a malicious fulfillmentManifest — yaml.load RCE in the order handler, then id/shell, metadata token theft, and GCS enumeration.",
+      "One poisoned POST /checkout on Cloud Run runs the full MITRE tracer chain: T1190 → T1203 PyYAML → T1059 shell/id → T1027 renamed curl → T1005 sensitive cat → T1552 metadata token → T1619 GCS list → T1496 miner → T1565 EICAR.",
     outcome:
-      "Full kill chain in checkout response on order-webhook Cloud Run; tracer Process events plus Cloud Audit Logs.",
+      "10-step securityDemo.chain with mitre_attack map. Tracer Process/File/API/DNS on Cloud Run; Cloud Audit Logs for GCS.",
   },
   // AI
   {
@@ -342,12 +345,12 @@ export const POC_STORIES: PocStory[] = [
   {
     id: "serverless-checkout-chain",
     category: "container-runtime",
-    title: "Story 3 — Poisoned checkout (order webhook)",
+    title: "Story 3 — Serverless MITRE kill chain (Cloud Run)",
     blurb:
-      "Real cart checkout path on order-webhook Cloud Run: poisoned fulfillmentManifest triggers PyYAML RCE, post-exploit subprocess toolkit, metadata token theft, and GCS abuse.",
+      "Single checkout on order-webhook Cloud Run tracer: T1190 public checkout → T1203 PyYAML RCE → toolkit (shell, renamed downloader, sensitive cat) → metadata OAuth token → GCS discovery → miner + EICAR impact.",
     upwindFocus:
-      "Tracer Process events on Cloud Run · GCP credentials access · Cloud Audit Logs storage",
-    pocIds: ["order-yaml-checkout", "shell-pipe-cloudrun"],
+      "Tracer Process + File + API + DNS on Cloud Run · GCP credentials access · Crypto mining Detection · Cloud Audit Logs",
+    pocIds: ["order-yaml-checkout"],
   },
   {
     id: "identity-to-data",

@@ -195,6 +195,26 @@ export const SECURITY_POCS: SecurityPoc[] = [
     outcome: "Strong syscall signal on GKE sensor; discrete Process events on Cloud Run tracer.",
   },
   {
+    id: "cve-probe-story",
+    category: "container",
+    cve: "CVE-2023-50447",
+    title: "CVE probe → Threat Story bait",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/cve-probe-story",
+    requiresPillow: false,
+    upwindPolicies: [
+      "Suspicious CVE Exploitation Probing",
+      "Crypto mining threats",
+      "Shell Process Redirect",
+      "Package Managers Processes",
+      "Drift",
+    ],
+    description:
+      "One-click replay of the Jul-7 Threat Story sequence on chat-rag: CVE-named id redirect, shell pipe, exec -a xmrig, pip list, renamed miner. Detections first; Story may lag minutes.",
+    outcome:
+      "Same Process cluster as ‘Suspicious CVE Exploitation Probing in Container’ — best on GKE sensor, then ECS/ACA tracer.",
+  },
+  {
     id: "cryptominer-sim",
     category: "container",
     cve: "CWE-400",
@@ -356,6 +376,15 @@ export const SECURITY_POCS: SecurityPoc[] = [
 ];
 
 export const POC_STORIES: PocStory[] = [
+  {
+    id: "cve-probing-story",
+    category: "container",
+    title: "Story 0 — Threat Story bait (chat-rag)",
+    blurb:
+      "One click on chat-rag replays the Jul-7 Upwind Threat Story process cluster (CVE id file → pipe → xmrig → pip). Use this when you need a Story, not just alerts.",
+    upwindFocus: "Threat Stories correlation · Drift / crypto / shell detections on one workload",
+    pocIds: ["cve-probe-story"],
+  },
   {
     id: "react2shell-pivot",
     category: "container",

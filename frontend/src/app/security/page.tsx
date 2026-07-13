@@ -133,7 +133,7 @@ function AttackChain({
   onRunChain: (story: PocStory) => void;
   onContinue?: (tab: PocCategory) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const storyPocs = story.pocIds
     .map((id) => pocById.get(id))
     .filter((poc): poc is SecurityPoc => poc != null);
@@ -154,18 +154,18 @@ function AttackChain({
             className="btn-secondary text-xs px-4 py-2 disabled:opacity-40 shrink-0"
           >
             {running && story.pocIds.includes(running)
-              ? "Running chain…"
-              : `Run attack chain (${runnableCount})`}
+              ? "Running story…"
+              : `Run story (${runnableCount})`}
           </button>
         </div>
 
         <div className="mt-4 rounded-lg bg-ocean-50 border border-ocean-100 px-3.5 py-3">
           <p className="text-[10px] font-bold uppercase tracking-wide text-ocean-500 mb-1">
-            Under the hood
+            What this Story is
           </p>
           <p className="text-sm text-ocean-800 leading-relaxed">{story.underTheHood}</p>
           <p className="text-xs text-ocean-500 mt-2">
-            <span className="font-medium text-ocean-600">Watch in Upwind: </span>
+            <span className="font-medium text-ocean-600">Find in Upwind: </span>
             {story.upwindFocus}
           </p>
         </div>
@@ -185,7 +185,7 @@ function AttackChain({
           onClick={() => setOpen((v) => !v)}
           className="mt-3 text-xs font-medium text-ocean-600 hover:text-ocean-900"
         >
-          {open ? "Hide steps" : `Show ${story.pocIds.length} steps`}
+          {open ? "Hide Story events" : `Show ${story.pocIds.length} Story events`}
         </button>
       </div>
 
@@ -265,7 +265,7 @@ export default function SecurityPage() {
   function continueToTab(tab: PocCategory) {
     setActiveTab(tab);
     window.setTimeout(() => {
-      document.getElementById("attack-chains")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("threat-stories")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
   }
 
@@ -287,7 +287,7 @@ export default function SecurityPage() {
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold text-ocean-900">Security lab</h1>
         <p className="mt-2 text-ocean-600">
-          Run attack chains for Container, Serverless, Cloud XDR, and AI — then follow the signals in Upwind.
+          Each card is an Upwind Threat Story recipe. Run it, then open Threats → Stories / Detections / Events.
         </p>
         <p className="mt-3 text-sm text-ocean-500">
           <span className="font-medium text-ocean-700">{posture.compute}</span>
@@ -386,10 +386,10 @@ export default function SecurityPage() {
         )}
       </section>
 
-      <section id="attack-chains" className="mb-8">
-        <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Attack chains</h2>
+      <section id="threat-stories" className="mb-8">
+        <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Threat Stories</h2>
         <p className="text-sm text-ocean-600 mb-4">
-          Each chain runs ordered steps on a real workload. Read “Under the hood,” then run the full chain or individual steps.
+          Steps are the processes Upwind correlates into that Story (same shape as Threats → Stories → Timeline).
         </p>
 
         <div className="flex flex-wrap gap-2 mb-5">

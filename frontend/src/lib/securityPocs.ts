@@ -36,19 +36,19 @@ export const POC_CATEGORIES: Array<{
     id: "container",
     label: "Container",
     blurb:
-      "Attack chains on GKE frontend + chat-rag: initial access, eBPF toolkit, then metadata pivot.",
+      "Upwind Threat Stories on the container workload (chat-rag / frontend). Strongest Story correlation on GKE sensor.",
   },
   {
     id: "serverless",
     label: "Serverless",
     blurb:
-      "Attack chain on order-webhook Cloud Run — PyYAML MITRE checkout with tracer Process/File/API/DNS.",
+      "Threat Stories on order-webhook Cloud Run — tracer + Audit Logs checkout kill chain.",
   },
   {
     id: "cloud-xdr",
     label: "Cloud XDR",
     blurb:
-      "Continue after compromise — runtime SA data access or leaked SA key → impersonation → GCS.",
+      "Identity / data-exfil Stories after container compromise (runtime SA / leaked key → GCS).",
   },
   {
     id: "ai",
@@ -169,7 +169,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "pillow-rce",
     category: "container",
     cve: "CVE-2023-50447",
-    title: "Pillow RCE",
+    title: "CVE-named id redirect (Pillow RCE)",
     method: "POST",
     apiPath: "/api/security/demo/pillow",
     requiresPillow: true,
@@ -185,7 +185,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "shell-pipe",
     category: "container",
     cve: "CWE-78",
-    title: "Shell pipe redirect",
+    title: "Shell pipe / tee redirect",
     method: "POST",
     apiPath: "/api/security/demo/runtime/shell-pipe",
     upwindPolicies: [
@@ -220,7 +220,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "cryptominer-sim",
     category: "container",
     cve: "CWE-400",
-    title: "Crypto miner simulation",
+    title: "Cryptocurrency mining process",
     method: "POST",
     apiPath: "/api/security/demo/runtime/cryptominer-sim",
     upwindPolicies: ["Crypto mining threats", "CryptoMiners Services DNS"],
@@ -232,7 +232,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "curl-pipe-sh",
     category: "container",
     cve: "T1059 / T1105",
-    title: "curl | sh supply chain",
+    title: "Suspicious file download (curl | sh)",
     method: "POST",
     apiPath: "/api/security/demo/runtime/curl-pipe-sh",
     upwindPolicies: ["Operating system utilities processes", "Out Of Baseline"],
@@ -244,7 +244,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "renamed-downloader",
     category: "container",
     cve: "T1036 / T1105",
-    title: "Renamed downloader",
+    title: "Renamed downloader (process masquerade)",
     method: "POST",
     apiPath: "/api/security/demo/runtime/renamed-downloader",
     upwindPolicies: ["Operating system utilities processes", "Out Of Baseline"],
@@ -256,7 +256,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "package-manager",
     category: "container",
     cve: "CWE-494",
-    title: "Package manager in container",
+    title: "Package manager enumeration",
     method: "POST",
     apiPath: "/api/security/demo/runtime/package-manager",
     upwindPolicies: ["Package Managers Processes", "Drift"],
@@ -267,7 +267,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "sensitive-file-cat",
     category: "container",
     cve: "T1005",
-    title: "Sensitive file via cat",
+    title: "Private key or password search",
     method: "POST",
     apiPath: "/api/security/demo/runtime/sensitive-file-cat",
     upwindPolicies: [
@@ -284,7 +284,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "path-traversal",
     category: "container",
     cve: "CVE-2021-41773",
-    title: "Path traversal",
+    title: "Sensitive file access (path traversal)",
     method: "GET",
     apiPath: "/api/security/demo/traversal",
     upwindPolicies: [
@@ -381,117 +381,116 @@ export const POC_STORIES: PocStory[] = [
   {
     id: "cve-probing-story",
     category: "container",
-    title: "Threat Story — Suspicious CVE Exploitation Probing",
+    title: "Suspicious CVE Exploitation Probing in Container",
     blurb:
-      "The Jul-7 Upwind Story recipe on chat-rag: Pillow CVE → shell pipe → xmrig rename → pip list. This is what Threats → Stories shows.",
+      "The Jul-7 Upwind Threat Story on chat-rag. Run these Story events in order — same timeline Upwind correlated.",
     underTheHood:
-      "Replays the exact process cluster from that Story’s timeline: real Pillow ImageMath RCE writing /tmp/jss-cve-2023-50447-id.txt, then id|tee, discrete id, sh -c 'exec -a xmrig sleep 3' with mining-pool DNS, then pip list. Runs on chat-rag so the eBPF sensor (GKE) can correlate Drift detections into one Story. Close the existing Open Story in Upwind if you need a brand-new row — replaying often won’t bump Last seen.",
-    upwindFocus:
-      "Threats → Stories → Suspicious CVE Exploitation Probing (GKE best). Timeline: id redirect, tee, xmrig, pip.",
-    pocIds: ["cve-probe-story"],
+      "Event 1: Pillow RCE writes id to /tmp/jss-cve-2023-50447-id.txt. Event 2: id|tee shell pipe. Event 3: exec -a xmrig sleep 3 + mining-pool DNS. Event 4: pip list. That is the Story timeline (Drift detections + crypto). Close the existing Open Story in Upwind if you need a fresh row.",
+    upwindFocus: "Threats → Stories → Suspicious CVE Exploitation Probing · resource chat-rag",
+    pocIds: ["pillow-rce", "shell-pipe", "cryptominer-sim", "package-manager"],
+  },
+  {
+    id: "crypto-mining-story",
+    category: "container",
+    title: "Cryptocurrency mining process",
+    blurb:
+      "The Detection you usually see first — miner-named process plus mining-pool DNS.",
+    underTheHood:
+      "Spawns sh -c 'exec -a xmrig sleep 3', optional /tmp/xmrig binary chain, and DNS to pool.supportxmr.com / minergate. Promotes to Detection more reliably than other process signals.",
+    upwindFocus: "Threats → Detections → cryptocurrency mining process",
+    pocIds: ["cryptominer-sim"],
+  },
+  {
+    id: "cred-search-story",
+    category: "container",
+    title: "Private key or password search",
+    blurb:
+      "Sensitive file reads that show up as Process events for key/password searching.",
+    underTheHood:
+      "Cats /etc/passwd, /etc/hosts, /proc info and reads traversed credential files — same class of signal as “searched for a Private key or Password”.",
+    upwindFocus: "Threats → Events → Private key or Password · chat-rag / frontend",
+    pocIds: ["sensitive-file-cat", "path-traversal"],
+  },
+  {
+    id: "download-masquerade-story",
+    category: "container",
+    title: "Suspicious file downloads & process masquerade",
+    blurb:
+      "Supply-chain fetch shape and renamed binary — download / out-of-baseline process events.",
+    underTheHood:
+      "curl|sh against a local harmless script, then cp curl → /tmp/.wget and run it. Matches suspicious download and renamed-tool Drift events.",
+    upwindFocus: "Threats → Events → suspicious file downloads / Out Of Baseline",
+    pocIds: ["curl-pipe-sh", "renamed-downloader"],
   },
   {
     id: "react2shell-pivot",
     category: "container",
-    title: "Chain 1 — React2Shell to cloud pivot",
+    title: "Unauthenticated RCE → cloud credential theft",
     blurb:
-      "Unauthenticated RSC RCE on the frontend container, post-exploit toolkit, then metadata for cloud identity.",
+      "React2Shell on the frontend, then steal the runtime identity from metadata.",
     underTheHood:
-      "The frontend App Router endpoint is a controlled React2Shell harness (pinned vulnerable Next/React). It executes the post-RCE toolkit inside the Node process, then the next step hits GCE metadata for a service-account token. Process events land on the frontend; Cloud XDR continues with the stolen identity.",
-    upwindFocus: "Frontend Process events → credentials / metadata access → continue Cloud XDR",
+      "Frontend process toolkit after controlled React2Shell harness, then GCE metadata token theft. Continue in Cloud XDR for data access.",
+    upwindFocus: "Events on frontend → metadata/credentials → Cloud XDR Story",
     pocIds: ["react2shell", "metadata-creds"],
     continueIn: {
       tab: "cloud-xdr",
       storyId: "identity-to-data",
-      label: "Continue in Cloud XDR → Chain 1 (Runtime SA to GCS exfiltration)",
+      label: "Continue → Runtime SA to GCS / identity abuse Story",
     },
-  },
-  {
-    id: "container-compromise",
-    category: "container",
-    title: "Chain 2 — Pillow CVE to host recon",
-    blurb:
-      "Alternate initial access on chat-rag: Pillow RCE, path traversal, sensitive cat, then metadata.",
-    underTheHood:
-      "chat-rag deliberately loads vulnerable Pillow and evals ImageMath to get code execution, then reads files off-path and cats sensitive paths before querying metadata. Same cloud-pivot ending as Chain 1, different entry point and workload (Python vs Node).",
-    upwindFocus: "chat-rag Process events → sensitive file reads → credentials / metadata",
-    pocIds: ["pillow-rce", "path-traversal", "sensitive-file-cat", "metadata-creds"],
-    continueIn: {
-      tab: "cloud-xdr",
-      storyId: "identity-to-data",
-      label: "Continue in Cloud XDR → Chain 1",
-    },
-  },
-  {
-    id: "post-exploit-toolkit",
-    category: "container",
-    title: "Chain 3 — Attacker toolkit & impact",
-    blurb:
-      "Supply-chain download shape, renamed binary evasion, crypto miner Detection, package manager drift, shell redirect.",
-    underTheHood:
-      "After initial access is assumed, these steps run discrete attacker tooling patterns on GKE (sensor): curl|sh-style fetch, argv0 spoofing, xmrig-named process, package-manager activity, and shell-pipe redirect. Strongest place to show Detection + Story correlation.",
-    upwindFocus: "Crypto mining threats + CVE probing Story correlation on GKE sensor",
-    pocIds: [
-      "curl-pipe-sh",
-      "renamed-downloader",
-      "cryptominer-sim",
-      "package-manager",
-      "shell-pipe",
-    ],
   },
   {
     id: "serverless-checkout-chain",
     category: "serverless",
-    title: "Chain 1 — MITRE kill chain (Cloud Run checkout)",
+    title: "Poisoned serverless checkout (PyYAML kill chain)",
     blurb:
-      "Public Cloud Run checkout → PyYAML → toolkit → metadata token → GCS → miner + EICAR.",
+      "Public checkout deserializes malicious YAML and runs the post-exploit toolkit on Cloud Run.",
     underTheHood:
-      "order-webhook Cloud Run accepts crafted YAML in the checkout body. Unsafe load yields RCE-shaped behavior, then metadata token use against GCS and a miner/EICAR footprint. Tracer + Cloud Audit Logs cover this plane—same MITRE shape as Container Chain 1.",
-    upwindFocus:
-      "Tracer Process + File + API + DNS on Cloud Run · Cloud Audit Logs · same MITRE shape as Container Chain 1",
+      "One poisoned /checkout: PyYAML → shell/id → renamed curl → sensitive cat → metadata → GCS → miner → EICAR.",
+    upwindFocus: "Cloud Run tracer Process/File/API/DNS + Cloud Audit Logs",
     pocIds: ["order-yaml-checkout"],
   },
   {
     id: "identity-to-data",
     category: "cloud-xdr",
-    title: "Chain 1 — Runtime SA to GCS exfiltration",
+    title: "Workload identity → data exfiltration",
     blurb:
-      "After metadata token theft in Container Chain 1, abuse the overprivileged GKE service account and probe GCS.",
+      "Abuse the overprivileged runtime SA and pull objects from GCS.",
     underTheHood:
-      "Uses the compromised workload’s runtime service-account token to call overly permissive APIs and list/get GCS objects. Pure cloud control-plane abuse correlated in Audit Logs / identity graph.",
-    upwindFocus: "Cloud Audit Logs storage · Secret Manager · service account abuse chain",
+      "IAM/storage probes with the workload identity after metadata theft — control-plane story, not container RCE.",
+    upwindFocus: "Cloud Audit Logs · identity graph · GCS access",
     pocIds: ["iam-role-abuse", "gcs-exfil"],
   },
   {
     id: "sa-escalation",
     category: "cloud-xdr",
-    title: "Chain 2 — Dev SA key to impersonation",
+    title: "Dormant SA key → impersonation → escalation",
     blurb:
-      "Alternate kill chain: leaked dev SA JSON key → impersonate production SA → confirm VM+actAs escalation path.",
+      "Leaked user-managed key, GenerateAccessToken to a stronger SA, then GCS.",
     underTheHood:
-      "Authenticates with a planted/leaked user-managed SA key, generates tokens for a more privileged SA via iamcredentials, then probes actAs/VM escalation and GCS. Long-lived key risk vs ephemeral metadata tokens from Chain 1.",
-    upwindFocus: "Dormant key usage · iamcredentials GenerateAccessToken · identity graph",
+      "Long-lived key risk vs ephemeral metadata tokens — dormant credential Story shape.",
+    upwindFocus: "Dormant key usage · iamcredentials · Audit Logs",
     pocIds: ["sa-key-theft", "sa-impersonation", "vm-sa-escalation", "gcs-exfil"],
   },
   {
     id: "ai-data-plane",
     category: "ai",
-    title: "Chain 1 — Unauthenticated AI abuse",
-    blurb: "Prompt abuse through the open chat endpoint, then wipe and rebuild RAG without authentication.",
+    title: "Unauthenticated AI service abuse",
+    blurb:
+      "Open chat + unauth RAG reindex — external AI egress and admin without identity.",
     underTheHood:
-      "Hits /api/chat with a prompt-injection-style request (egress to OpenAI) then calls the unauthenticated reindex admin path to wipe/rebuild embeddings. Demonstrates AI SPM + no-user-identity admin on the AI data plane—not a package CVE.",
-    upwindFocus: "Communication to External AI Service · AI SPM · unauthorized admin",
+      "Prompt-injection style /api/chat then wipe/rebuild embeddings with no login.",
+    upwindFocus: "Communication to External AI Service · AI SPM",
     pocIds: ["ai-chat-unauth", "unauth-reindex"],
   },
   {
     id: "ai-supply-chain",
     category: "ai",
-    title: "Chain 2 — AI supply-chain CVEs",
+    title: "AI supply-chain CVE → post-compromise toolkit",
     blurb:
-      "Scanner Criticals on langchain-community and chromadb; run the post-compromise toolkit as if unsafe RAG deserialize succeeded.",
+      "LangChain/Chroma Criticals plus process toolkit on chat-rag as if unsafe deserialize succeeded.",
     underTheHood:
-      "chat-rag pins langchain-community (CVE-2024-5998 FAISS pickle) and chromadb (CVE-2026-45831) for SCA. The demo harness then runs the same Process toolkit inside the AI workload—without shipping a live pickle gadget—so you can show package Criticals plus runtime Process signals together.",
-    upwindFocus: "AI SPM package CVEs · Process toolkit on chat-rag · pair with Chain 1 for identity-less AI path",
+      "Pinned CVE packages for SCA; harness runs id/tee/pip/xmrig inside the AI workload (no live pickle gadget).",
+    upwindFocus: "AI SPM package CVEs · Process events on chat-rag",
     pocIds: ["langchain-ai"],
   },
 ];

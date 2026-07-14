@@ -55,7 +55,7 @@ export const POC_CATEGORIES: Array<{
   {
     id: "ai",
     label: "AI",
-    blurb: "Unauthenticated AI endpoints and vulnerable AI libraries.",
+    blurb: "OWASP LLM Top 10 style attacks against the shop assistant and RAG store.",
   },
 ];
 
@@ -315,13 +315,14 @@ export const SECURITY_POCS: SecurityPoc[] = [
   {
     id: "ai-chat-unauth",
     category: "ai",
-    cve: "CWE-306",
-    title: "Call chat with no authentication",
+    cve: "LLM01:2025",
+    title: "Prompt injection (unauthenticated chat)",
     method: "POST",
-    apiPath: "/api/security/demo/ai-chat",
-    signals: ["Communication to External AI Service", "AI SPM"],
-    description: "Posts a prompt-injection style request through unauthenticated /api/chat → OpenAI.",
-    outcome: "Unauthenticated egress to an external AI API.",
+    apiPath: "/api/security/demo/runtime/ai-prompt-injection",
+    signals: ["Communication to External AI Service", "Prompt injection", "AI SPM"],
+    description:
+      "OWASP LLM01 — sends a direct prompt-injection style request through the open chat API.",
+    outcome: "Unauthenticated LLM call with instruction-override prompt.",
   },
   {
     id: "unauth-reindex",
@@ -332,12 +333,24 @@ export const SECURITY_POCS: SecurityPoc[] = [
     apiPath: "/api/security/demo/reindex",
     signals: ["AI admin action", "Unauthorized API"],
     description: "Wipes and rebuilds the RAG knowledge base with no authentication.",
-    outcome: "Unauthorized admin action on the AI data plane.",
+    outcome: "Unauthorized admin action on the AI data plane — picks up planted demo secrets.",
+  },
+  {
+    id: "ai-sensitive-disclosure",
+    category: "ai",
+    cve: "LLM02:2025",
+    title: "Disclose sensitive data via RAG",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/ai-sensitive-disclosure",
+    signals: ["Sensitive data in RAG corpus", "PII / secret disclosure via AI"],
+    description:
+      "OWASP LLM02 — retrieves planted VIP emails and an internal API key from the knowledge base.",
+    outcome: "Sensitive docs (and often the model reply) expose demo PII/secrets.",
   },
   {
     id: "langchain-ai",
     category: "ai",
-    cve: "CVE-2024-5998",
+    cve: "LLM03:2025",
     title: "Exercise vulnerable AI packages",
     method: "POST",
     apiPath: "/api/security/demo/runtime/langchain-ai",
@@ -349,8 +362,68 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Crypto mining threats",
     ],
     description:
-      "Touches pinned langchain-community / chromadb CVEs and runs light post-compromise tooling on chat-rag.",
+      "OWASP LLM03 supply chain — pinned langchain-community / chromadb CVEs plus light tooling on chat-rag.",
     outcome: "SCA package signals plus process activity from the AI workload.",
+  },
+  {
+    id: "ai-poison",
+    category: "ai",
+    cve: "LLM04:2025",
+    title: "Poison the vector store",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/ai-poison",
+    signals: ["Unauthenticated RAG write", "Poisoned embedding retrieval"],
+    description:
+      "OWASP LLM04 — unauthenticated upsert of a fake FREEBOARD promo into Chroma, then retrieves it.",
+    outcome: "Poisoned chunk is written and comes back from similarity search.",
+  },
+  {
+    id: "ai-xss-output",
+    category: "ai",
+    cve: "LLM05:2025",
+    title: "Unsafe HTML in model output",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/ai-xss-output",
+    signals: ["HTML/JS in model output", "Client-side XSS if unsanitized"],
+    description:
+      "OWASP LLM05 — obtains executable HTML/JS as assistant output (falls back to a canned payload).",
+    outcome: "Unsafe HTML written for a render-as-HTML XSS demo.",
+  },
+  {
+    id: "ai-system-prompt-leak",
+    category: "ai",
+    cve: "LLM07:2025",
+    title: "Leak the system prompt",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/ai-system-prompt-leak",
+    signals: ["System prompt secret extraction", "Instruction leakage"],
+    description:
+      "OWASP LLM07 — the system prompt embeds a staff PIN / wholesale code; asks the model to repeat it.",
+    outcome: "Prompt-leak attempt against system instructions that contain workshop secrets.",
+  },
+  {
+    id: "ai-rag-embedding",
+    category: "ai",
+    cve: "LLM08:2025",
+    title: "Abuse vector / embedding retrieval",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/ai-rag-embedding",
+    signals: ["Insecure RAG retrieval", "No tenant/ACL on embeddings"],
+    description:
+      "OWASP LLM08 — similarity search returns sensitive or poisoned chunks with no access control.",
+    outcome: "Vector hits on confidential and/or poisoned embeddings.",
+  },
+  {
+    id: "ai-unbounded",
+    category: "ai",
+    cve: "LLM10:2025",
+    title: "Burn tokens with unbounded calls",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/ai-unbounded",
+    signals: ["Burst LLM/token spend", "No rate limit on AI API"],
+    description:
+      "OWASP LLM10 — fires multiple unauthenticated chat completions in one request (cost/availability).",
+    outcome: "Burst of LLM calls with aggregated token counts.",
   },
 ];
 
@@ -426,13 +499,25 @@ export const POC_STORIES: PocStory[] = [
     category: "ai",
     kind: "extra",
     targetResource: "chat-rag",
-    title: "Unauthenticated AI abuse",
+    title: "OWASP LLM Top 10 on the shop AI",
     blurb:
-      "Hits open chat and reindex endpoints, then exercises vulnerable AI packages on chat-rag.",
-    underTheHood: "Unauth /api/chat and /reindex, then langchain-community / chromadb toolkit.",
-    lookFor: "External AI egress · unauthenticated admin API · AI package CVEs",
+      "Eight LLM risks on chat-rag: prompt injection, sensitive disclosure, supply chain, data poisoning, unsafe output, system-prompt leak, vector abuse, and unbounded token spend.",
+    underTheHood:
+      "LLM01 injection → reindex → LLM02 SID → LLM03 packages → LLM04 poison → LLM05 XSS HTML → LLM07 prompt leak → LLM08 embeddings → LLM10 burst chat.",
+    lookFor:
+      "AI egress · unauth RAG write/read · secret/PII in context · package CVEs · burst token use",
     stepGapSeconds: 8,
-    pocIds: ["ai-chat-unauth", "unauth-reindex", "langchain-ai"],
+    pocIds: [
+      "ai-chat-unauth",
+      "unauth-reindex",
+      "ai-sensitive-disclosure",
+      "langchain-ai",
+      "ai-poison",
+      "ai-xss-output",
+      "ai-system-prompt-leak",
+      "ai-rag-embedding",
+      "ai-unbounded",
+    ],
   },
 ];
 

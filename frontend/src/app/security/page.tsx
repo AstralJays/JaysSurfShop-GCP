@@ -71,6 +71,7 @@ function ChainStep({
   totalSteps,
   blocked,
   running,
+  chainBusy,
   result,
   onRun,
 }: {
@@ -79,6 +80,7 @@ function ChainStep({
   totalSteps: number;
   blocked: boolean;
   running: boolean;
+  chainBusy: boolean;
   result?: { ok: boolean; data: unknown };
   onRun: () => void;
 }) {
@@ -95,7 +97,7 @@ function ChainStep({
         </div>
         <button
           type="button"
-          disabled={blocked || running}
+          disabled={blocked || running || chainBusy}
           onClick={onRun}
           className="btn-primary text-xs px-3 py-1.5 disabled:opacity-40 shrink-0"
         >
@@ -119,6 +121,8 @@ function AttackChain({
   pocById,
   findings,
   running,
+  chainId,
+  chainStatus,
   results,
   onRun,
   onRunChain,
@@ -128,6 +132,8 @@ function AttackChain({
   pocById: Map<string, SecurityPoc>;
   findings: PostureData["findings"];
   running: string | null;
+  chainId: string | null;
+  chainStatus: string | null;
   results: Record<string, { ok: boolean; data: unknown }>;
   onRun: (poc: SecurityPoc) => void;
   onRunChain: (story: PocStory) => void;
@@ -138,6 +144,8 @@ function AttackChain({
     .map((id) => pocById.get(id))
     .filter((poc): poc is SecurityPoc => poc != null);
   const runnableCount = storyPocs.filter((poc) => !isPocBlocked(poc, findings)).length;
+  const thisChainRunning = chainId === story.id;
+  const busy = running != null || chainId != null;
 
   return (
     <section className="rounded-xl border border-ocean-100 bg-white mb-4 overflow-hidden">
@@ -146,35 +154,36 @@ function AttackChain({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="rounded-md bg-ocean-900 text-white text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
-                Story {story.storyIndex}
+                Chain {story.storyIndex}
               </span>
               <span className="rounded-md bg-ocean-100 text-ocean-700 text-[10px] font-mono px-2 py-0.5">
-                resource: {story.targetResource}
+                target: {story.targetResource}
               </span>
             </div>
             <h3 className="font-display text-lg font-bold text-ocean-900">{story.title}</h3>
             <p className="text-sm text-ocean-600 mt-1">{story.blurb}</p>
+            {thisChainRunning && chainStatus && (
+              <p className="text-xs font-medium text-teal-700 mt-2">{chainStatus}</p>
+            )}
           </div>
           <button
             type="button"
-            disabled={running != null || runnableCount === 0}
+            disabled={busy || runnableCount === 0}
             onClick={() => onRunChain(story)}
             className="btn-secondary text-xs px-4 py-2 disabled:opacity-40 shrink-0"
           >
-            {running && story.pocIds.includes(running)
-              ? "Running story…"
-              : `Run story (${runnableCount})`}
+            {thisChainRunning ? "Running chain…" : `Run chain (${runnableCount})`}
           </button>
         </div>
 
         <div className="mt-4 rounded-lg bg-ocean-50 border border-ocean-100 px-3.5 py-3">
           <p className="text-[10px] font-bold uppercase tracking-wide text-ocean-500 mb-1">
-            What this Story is
+            What this chain does
           </p>
           <p className="text-sm text-ocean-800 leading-relaxed">{story.underTheHood}</p>
           <p className="text-xs text-ocean-500 mt-2">
-            <span className="font-medium text-ocean-600">Find in Upwind: </span>
-            {story.upwindFocus}
+            <span className="font-medium text-ocean-600">Signals to watch: </span>
+            {story.lookFor}
           </p>
         </div>
 
@@ -193,7 +202,7 @@ function AttackChain({
           onClick={() => setOpen((v) => !v)}
           className="mt-3 text-xs font-medium text-ocean-600 hover:text-ocean-900"
         >
-          {open ? "Hide Story events" : `Show ${story.pocIds.length} Story events`}
+          {open ? "Hide steps" : `Show ${story.pocIds.length} steps`}
         </button>
       </div>
 
@@ -210,6 +219,7 @@ function AttackChain({
                 totalSteps={story.pocIds.length}
                 blocked={isPocBlocked(poc, findings)}
                 running={running === poc.id}
+                chainBusy={busy}
                 result={results[poc.id]}
                 onRun={() => onRun(poc)}
               />
@@ -225,6 +235,8 @@ export default function SecurityPage() {
   const [posture, setPosture] = useState<PostureData | null>(null);
   const [results, setResults] = useState<Record<string, { ok: boolean; data: unknown }>>({});
   const [running, setRunning] = useState<string | null>(null);
+  const [chainId, setChainId] = useState<string | null>(null);
+  const [chainStatus, setChainStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PocCategory>("container");
   const [showDetails, setShowDetails] = useState(false);
 
@@ -244,11 +256,16 @@ export default function SecurityPage() {
     load();
   }, [load]);
 
-  async function runPoC(poc: SecurityPoc) {
+  async function runPoC(poc: SecurityPoc, options?: { keepBusy?: boolean }) {
     setRunning(poc.id);
     try {
       const res = await fetch(poc.apiPath, { method: poc.method });
-      const data = await res.json();
+      let data: unknown;
+      try {
+        data = await res.json();
+      } catch {
+        data = { error: `Non-JSON response (${res.status})` };
+      }
       setResults((prev) => ({ ...prev, [poc.id]: { ok: res.ok, data } }));
     } catch (err) {
       setResults((prev) => ({
@@ -256,35 +273,57 @@ export default function SecurityPage() {
         [poc.id]: { ok: false, data: { error: err instanceof Error ? err.message : "Failed" } },
       }));
     } finally {
-      setRunning(null);
+      if (!options?.keepBusy) setRunning(null);
+    }
+  }
+
+  async function sleepWithStatus(totalMs: number, label: string) {
+    const started = Date.now();
+    while (Date.now() - started < totalMs) {
+      const left = Math.max(0, Math.ceil((totalMs - (Date.now() - started)) / 1000));
+      setChainStatus(`${label} · next step in ${left}s`);
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
 
   async function runChain(story: PocStory) {
-    if (!posture) return;
-    const gapMs = Math.max(1500, (story.stepGapSeconds ?? 2) * 1000);
-    for (let i = 0; i < story.pocIds.length; i++) {
-      const pocId = story.pocIds[i];
-      const poc = pocById.get(pocId);
-      if (!poc || isPocBlocked(poc, posture.findings)) continue;
-      await runPoC(poc);
-      if (i < story.pocIds.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, gapMs));
+    if (!posture || chainId) return;
+    const steps = story.pocIds
+      .map((id) => pocById.get(id))
+      .filter((poc): poc is SecurityPoc => poc != null && !isPocBlocked(poc, posture.findings));
+    if (steps.length === 0) return;
+
+    const gapMs = Math.max(0, (story.stepGapSeconds ?? 2) * 1000);
+    setChainId(story.id);
+    try {
+      for (let i = 0; i < steps.length; i++) {
+        const poc = steps[i];
+        setChainStatus(`Step ${i + 1}/${steps.length} · ${poc.title}`);
+        await runPoC(poc, { keepBusy: true });
+        setRunning(null);
+        if (i < steps.length - 1 && gapMs > 0) {
+          await sleepWithStatus(gapMs, `Step ${i + 1}/${steps.length} done`);
+        }
       }
+      setChainStatus(`Done · ${steps.length}/${steps.length} steps`);
+    } finally {
+      setRunning(null);
+      setChainId(null);
+      window.setTimeout(() => setChainStatus(null), 2500);
     }
   }
 
   function continueToTab(tab: PocCategory) {
     setActiveTab(tab);
     window.setTimeout(() => {
-      document.getElementById("threat-stories")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("attack-chains")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
   }
 
   if (!posture) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center text-ocean-500">
-        Loading security lab…
+        Loading exploit lab…
       </div>
     );
   }
@@ -297,15 +336,15 @@ export default function SecurityPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-ocean-900">Security lab</h1>
+        <h1 className="font-display text-3xl font-bold text-ocean-900">Exploit lab</h1>
         <p className="mt-2 text-ocean-600">
-          Goal: <span className="font-medium text-ocean-800">2 Upwind Threat Stories per cloud</span> on different resources.
-          Story 1 = chat-rag. Story 2 = frontend. Wait for Story 1 before starting Story 2.
+          Open-source demo app (Juice Shop–style): fork it, run it, point{" "}
+          <span className="font-medium text-ocean-800">your</span> security tooling at it, then fire the built-in attacks.
         </p>
         <ol className="mt-3 text-sm text-ocean-600 list-decimal list-inside space-y-1">
-          <li>Close any frozen Open Story of the same shape in Upwind.</li>
-          <li>Run Story 1 (30s gaps between events). Wait until it appears under Threats → Stories.</li>
-          <li>Run Story 2 on frontend only — do not mix chat-rag PoCs in that window.</li>
+          <li>Integrate whatever CSPM / runtime / XDR / SCA stack you use.</li>
+          <li>Run an attack chain (or step through) from this page.</li>
+          <li>Chain 1 → <span className="font-mono text-xs">chat-rag</span>; Chain 2 → <span className="font-mono text-xs">frontend</span> — separate workloads so detections can split cleanly.</li>
         </ol>
         <p className="mt-3 text-sm text-ocean-500">
           <span className="font-medium text-ocean-700">{posture.compute}</span>
@@ -404,10 +443,10 @@ export default function SecurityPage() {
         )}
       </section>
 
-      <section id="threat-stories" className="mb-8">
-        <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Threat Stories</h2>
+      <section id="attack-chains" className="mb-8">
+        <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Attack chains</h2>
         <p className="text-sm text-ocean-600 mb-4">
-          Two recipes, two resources. Upwind consolidates one flow into one Story — so Story 2 must land on a different workload than Story 1.
+          Built-in exploit recipes. Each one executes real commands and API calls in this stack so your tools have live signals to detect and respond to.
         </p>
 
         <div className="flex flex-wrap gap-2 mb-5">
@@ -441,6 +480,8 @@ export default function SecurityPage() {
             pocById={pocById}
             findings={findings}
             running={running}
+            chainId={chainId}
+            chainStatus={chainStatus}
             results={results}
             onRun={runPoC}
             onRunChain={runChain}

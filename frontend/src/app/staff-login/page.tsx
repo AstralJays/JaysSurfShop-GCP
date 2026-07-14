@@ -31,11 +31,11 @@ export default async function StaffLoginPage({
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
-      <p className="text-xs uppercase tracking-widest text-ocean-500 mb-2">Workshop stub</p>
+      <p className="text-xs uppercase tracking-widest text-ocean-500 mb-2">Lab stub</p>
       <h1 className="font-display text-3xl font-bold text-ocean-900">Staff sign-in</h1>
       <p className="mt-3 text-ocean-700 text-sm leading-relaxed">
         Sets a demo cookie so middleware allows <code className="bg-ocean-50 px-1 rounded">/admin</code>.
-        Not real identity — only here so CVE-2025-29927 has an auth check to skip.
+        Not real identity — only here so middleware auth has something to skip (CVE-2025-29927).
       </p>
 
       <form action={signIn} className="mt-8 space-y-4">

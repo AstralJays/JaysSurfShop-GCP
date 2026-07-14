@@ -35,7 +35,7 @@ export default function AdminPage() {
       </p>
       <pre className="mt-2 overflow-x-auto rounded-lg bg-ocean-950 text-ocean-100 text-xs p-4">
 {`curl -si "$ORIGIN/admin" \\
-  -H "x-middleware-subrequest: middleware:middleware:middleware:middleware:middleware"`}
+  -H "x-middleware-subrequest: src/middleware:src/middleware:src/middleware:src/middleware:src/middleware"`}
       </pre>
 
       <Link href="/" className="mt-8 inline-block text-ocean-700 underline underline-offset-2">

@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
  * process — the same execution boundary an attacker gets after RSC Flight RCE.
  * It does not embed a public Flight protocol gadget.
  *
- * Process shapes intentionally match workshop Detection/Event patterns Upwind
+ * Process shapes intentionally match common detection/event patterns security tools look for
  * surfaces well (esp. `sh -c -- id > …` and `exec -a xmrig sleep`), not just
  * a renamed sleep binary (crypto Detection-only).
  */
@@ -198,7 +198,7 @@ export async function POST() {
     chain,
     narrative:
       "React2Shell (CVE-2025-55182): unauthenticated RSC Flight RCE on Next.js App Router. " +
-      "This workshop harness demonstrates the post-compromise toolkit inside the frontend container " +
+      "This lab harness demonstrates the post-compromise toolkit inside the frontend container " +
       "(id redirect → shell pipe → renamed downloader → sensitive cat → miner) — then continue to metadata / Cloud XDR.",
     presenter_notes: {
       sca: "Pin next@15.1.0 and react@19.0.0 for scanner Critical findings",
@@ -209,7 +209,7 @@ export async function POST() {
       serverless_parallel:
         "Serverless uses PyYAML checkout RCE instead — same MITRE shape, different surface",
     },
-    upwind_policies: [
+    signals: [
       "Operating system utilities processes",
       "Shell Process Redirect",
       "Crypto mining threats",

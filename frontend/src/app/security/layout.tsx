@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Security Posture & Monitoring Demo | Jay's Surf Shop",
+  title: "Exploit Lab | Jay's Surf Shop",
   description: "Workshop PoC guide for controlled security demonstrations",
 };
 

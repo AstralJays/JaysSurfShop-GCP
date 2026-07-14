@@ -5,7 +5,8 @@
 </p>
 
 <p align="center">
-  GCP twin of <a href="https://github.com/AstralJays/JaysSurfShop">JaysSurfShop</a> — the same intentionally vulnerable surf shop for security workshops — CSPM, container runtime, AI SPM, and XDR demos. Deploy on <strong>GKE</strong> or <strong>Cloud Run</strong>.
+  GCP twin of <a href="https://github.com/AstralJays/JaysSurfShop">JaysSurfShop</a> — same open-source <strong>POC / demo</strong> app.
+  Fork or clone, deploy on <strong>GKE</strong> or <strong>Cloud Run</strong>, connect <strong>your</strong> security tooling, and run the built-in attacks from <code>/security</code>.
 </p>
 
 <p align="center">
@@ -33,18 +34,11 @@ Internet → order-webhook (serverless — EICAR + PyYAML CVE-2020-14343)
 | **board-generator** | FastAPI, image generation | 8002 |
 | **order-webhook** | Python serverless (Cloud Function Gen2) | `/checkout`, `/demo/*` |
 
-### Upwind coverage (different mechanisms per platform)
+### Integrating security tooling
 
-GKE and Cloud Run are protected by **different Upwind components** — do not mix them on the same workload.
+This repo is tool-agnostic. After deploy (or local Compose), point your CSPM / runtime / XDR / SCA product at the project and use `/security` to generate live attack signals (process, network, identity, packages, CVEs).
 
-| Platform | Upwind mechanism | When it acts | GKE app images |
-|----------|------------------|--------------|----------------|
-| **GKE** | **Sensor** — operator + node scan agents | Runtime (process, network, drift) | No Dockerfile tracer |
-| **GKE** | **Admission Controller** — admission webhook + OPA | Deploy-time (Kubernetes API create/update) | N/A (cluster-level) |
-| **Cloud Run** | **Tracer** — embedded in container image | Runtime on serverless containers | N/A (not used on GKE) |
-
-- **GKE path:** `deploy-gke.sh` installs sensor + admission webhook when `upwind_client_id` / `upwind_client_secret` are set. See [infrastructure/gke/README.md](infrastructure/gke/README.md).
-- **Cloud Run path:** CI builds `order-webhook` with the Upwind tracer in the Dockerfile; runtime env vars are set at deploy. See [infrastructure/cloud-run/README.md](infrastructure/cloud-run/README.md).
+GKE vs Cloud Run differ as hosts (node sensor vs container-only runtime) — match your agent/instrumentation to the platform you choose. See [infrastructure/gke/README.md](infrastructure/gke/README.md) and [infrastructure/cloud-run/README.md](infrastructure/cloud-run/README.md).
 
 ## Quick start (local)
 
@@ -57,9 +51,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) · security dashboard at [/security](http://localhost:3000/security)
+Open [http://localhost:3000](http://localhost:3000) · exploit lab at [/security](http://localhost:3000/security)
 
-Vulnerabilities are on by default: pillow CVE, exploit endpoints, path traversal, chat-rag on port 8001. On GCP: public GCS bucket export, overprivileged service accounts, open SSH firewall rule, and anonymous Cloud Function routes (EICAR + PyYAML CVE).
+Vulnerabilities are on by default (Pillow CVE, exploit endpoints, path traversal, chat-rag on 8001). Point your tooling at the stack, then run attacks from the lab. On GCP: public GCS bucket export, overprivileged service accounts, open SSH firewall rule, and anonymous Cloud Function routes (EICAR + PyYAML CVE).
 
 ## Deploy to GCP
 
@@ -78,7 +72,7 @@ Choose **Cloud Run** or **GKE** — both share VPC, Artifact Registry, Secret Ma
 # 4. Full stack — set image_tag in terraform.tfvars to the commit SHA from CI, or latest
 cp infrastructure/cloud-run/terraform/terraform.tfvars.example \
    infrastructure/cloud-run/terraform/terraform.tfvars
-# Set project_id, openai_api_key, and optionally upwind_client_id/secret in terraform.tfvars
+# Set project_id, openai_api_key in terraform.tfvars
 ./infrastructure/scripts/deploy-cloud-run.sh   # or: deploy-gke.sh
 ```
 

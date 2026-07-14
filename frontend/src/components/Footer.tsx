@@ -12,7 +12,7 @@ const HELP_LINKS = [
   { href: "/chat", label: "Shop Crew" },
   { href: "/design", label: "Create-A-Board" },
   { href: "/about", label: "Our Story" },
-  { href: "/security", label: "Security Posture" },
+  { href: "/security", label: "Exploit Lab" },
 ];
 
 export default function Footer() {

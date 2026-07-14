@@ -24,7 +24,7 @@ export async function POST() {
         sources: data.sources,
         narrative:
           "Unauthenticated /api/chat forwards to GPT-4o-mini — AI SPM audit logs capture inference without user identity.",
-        upwind_policies: ["Communication to External AI Service", "AI SPM audit"],
+        signals: ["Communication to External AI Service", "AI SPM audit"],
       },
       { status: res.status }
     );

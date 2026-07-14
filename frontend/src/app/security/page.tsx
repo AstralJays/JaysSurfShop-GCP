@@ -144,6 +144,14 @@ function AttackChain({
       <div className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className="rounded-md bg-ocean-900 text-white text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
+                Story {story.storyIndex}
+              </span>
+              <span className="rounded-md bg-ocean-100 text-ocean-700 text-[10px] font-mono px-2 py-0.5">
+                resource: {story.targetResource}
+              </span>
+            </div>
             <h3 className="font-display text-lg font-bold text-ocean-900">{story.title}</h3>
             <p className="text-sm text-ocean-600 mt-1">{story.blurb}</p>
           </div>
@@ -254,11 +262,15 @@ export default function SecurityPage() {
 
   async function runChain(story: PocStory) {
     if (!posture) return;
-    for (const pocId of story.pocIds) {
+    const gapMs = Math.max(1500, (story.stepGapSeconds ?? 2) * 1000);
+    for (let i = 0; i < story.pocIds.length; i++) {
+      const pocId = story.pocIds[i];
       const poc = pocById.get(pocId);
       if (!poc || isPocBlocked(poc, posture.findings)) continue;
       await runPoC(poc);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (i < story.pocIds.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, gapMs));
+      }
     }
   }
 
@@ -287,8 +299,14 @@ export default function SecurityPage() {
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold text-ocean-900">Security lab</h1>
         <p className="mt-2 text-ocean-600">
-          Each card is an Upwind Threat Story recipe. Run it, then open Threats → Stories / Detections / Events.
+          Goal: <span className="font-medium text-ocean-800">2 Upwind Threat Stories per cloud</span> on different resources.
+          Story 1 = chat-rag. Story 2 = frontend. Wait for Story 1 before starting Story 2.
         </p>
+        <ol className="mt-3 text-sm text-ocean-600 list-decimal list-inside space-y-1">
+          <li>Close any frozen Open Story of the same shape in Upwind.</li>
+          <li>Run Story 1 (30s gaps between events). Wait until it appears under Threats → Stories.</li>
+          <li>Run Story 2 on frontend only — do not mix chat-rag PoCs in that window.</li>
+        </ol>
         <p className="mt-3 text-sm text-ocean-500">
           <span className="font-medium text-ocean-700">{posture.compute}</span>
           <span className="mx-1.5">·</span>
@@ -389,7 +407,7 @@ export default function SecurityPage() {
       <section id="threat-stories" className="mb-8">
         <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Threat Stories</h2>
         <p className="text-sm text-ocean-600 mb-4">
-          Steps are the processes Upwind correlates into that Story (same shape as Threats → Stories → Timeline).
+          Two recipes, two resources. Upwind consolidates one flow into one Story — so Story 2 must land on a different workload than Story 1.
         </p>
 
         <div className="flex flex-wrap gap-2 mb-5">

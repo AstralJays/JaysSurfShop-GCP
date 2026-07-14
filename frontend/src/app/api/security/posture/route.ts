@@ -26,6 +26,7 @@ const BASE = {
       { path: "/api/security/demo/*", note: "PoC proxy" },
     ],
     private: [
+      { path: "/admin", note: "Staff ops — middleware cookie gate (CVE-2025-29927 bypassable)" },
       { path: "chat-rag:8001/chat", note: "RAG + GPT-4o-mini" },
       { path: "chat-rag:8001/demo/exploit/*", note: "Exploit lab" },
       { path: "chat-rag:8001/reindex", note: "Unauthenticated admin (local compose)" },
@@ -101,6 +102,14 @@ function buildFindings(
   cves.push({
     cve: "CVE-2025-66478",
     package: "next 15.1.0 (App Router RSC)",
+    severity: "Critical",
+    service: "frontend",
+    active: true,
+    exploitable: true,
+  });
+  cves.push({
+    cve: "CVE-2025-29927",
+    package: "next 15.1.0 (middleware auth bypass)",
     severity: "Critical",
     service: "frontend",
     active: true,

@@ -719,6 +719,12 @@ export function getStoriesForCategory(category: PocCategory): PocStory[] {
   return POC_STORIES.filter((story) => story.category === category);
 }
 
+/** All stories in presenter order: featured chains first, extras last. */
+export function getOrderedStories(): PocStory[] {
+  const order: PocStory["kind"][] = ["story", "follow-on", "extra"];
+  return [...POC_STORIES].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+}
+
 export function isPocBlocked(
   poc: SecurityPoc,
   findings: {

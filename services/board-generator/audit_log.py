@@ -63,5 +63,6 @@ def audit_ai_inference(
         user_prompt_hash=user_prompt_hash,
         success=success,
         error=error,
-        ai_provider="openai",
+        ai_provider=os.getenv("IMAGE_PROVIDER", os.getenv("LLM_PROVIDER", "openai")).strip().lower()
+        or "openai",
     )

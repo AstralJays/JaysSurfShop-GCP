@@ -38,8 +38,37 @@ variable "github_scan_repo" {
 }
 
 variable "openai_api_key" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "Optional OpenAI key for openai LLM/IMAGE_PROVIDER fallback"
+}
+
+variable "llm_provider" {
+  type        = string
+  default     = "vertex"
+  description = "LLM backend for chat-rag: vertex (GCP) or openai"
+}
+
+variable "image_provider" {
+  type        = string
+  default     = "vertex"
+  description = "Image backend for board-generator: vertex (Imagen) or openai"
+}
+
+variable "vertex_chat_model" {
+  type    = string
+  default = "gemini-2.0-flash-001"
+}
+
+variable "vertex_embed_model" {
+  type    = string
+  default = "text-embedding-004"
+}
+
+variable "vertex_image_model" {
+  type    = string
+  default = "imagen-3.0-generate-001"
 }
 
 variable "allowed_cidr_blocks" {

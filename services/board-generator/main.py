@@ -30,8 +30,6 @@ app.add_middleware(
 GENERATED_DIR = Path(__file__).parent / "generated"
 GENERATED_DIR.mkdir(exist_ok=True)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 IMAGE_MODEL_FALLBACKS = ("gpt-image-1", "gpt-image-1.5", "dall-e-3", "dall-e-2")
 
 BOARD_TYPES = {
@@ -66,6 +64,40 @@ class BoardDesignResponse(BaseModel):
     image_url: str
     prompt_used: str
     design_id: str
+
+
+def image_provider() -> str:
+    return os.getenv("IMAGE_PROVIDER", os.getenv("LLM_PROVIDER", "openai")).strip().lower()
+
+
+def image_model() -> str:
+    if image_provider() == "vertex":
+        return os.getenv("AI_MODEL", "imagen-3.0-generate-001")
+    return os.getenv("AI_MODEL", "gpt-image-1")
+
+
+def is_configured() -> bool:
+    if image_provider() == "vertex":
+        return bool(
+            os.getenv("GOOGLE_CLOUD_PROJECT")
+            or os.getenv("GCP_PROJECT")
+            or os.getenv("VERTEX_PROJECT")
+        )
+    key = os.getenv("OPENAI_API_KEY", "")
+    return bool(key) and not key.startswith("sk-your")
+
+
+def _project_id() -> str:
+    return (
+        os.getenv("VERTEX_PROJECT")
+        or os.getenv("GOOGLE_CLOUD_PROJECT")
+        or os.getenv("GCP_PROJECT")
+        or ""
+    )
+
+
+def _location() -> str:
+    return os.getenv("VERTEX_LOCATION") or os.getenv("GCP_REGION") or "us-central1"
 
 
 def _is_gpt_image_model(model: str) -> bool:
@@ -115,7 +147,7 @@ def _build_generate_kwargs(model: str, prompt: str) -> dict:
 
 
 def _models_to_try() -> list[str]:
-    preferred = os.getenv("AI_MODEL", "gpt-image-1")
+    preferred = image_model()
     models = [preferred]
     for candidate in IMAGE_MODEL_FALLBACKS:
         if candidate not in models:
@@ -140,14 +172,40 @@ def build_prompt(req: BoardDesignRequest) -> str:
     )
 
 
+def _generate_vertex_image(prompt: str, design_id: str) -> str:
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(vertexai=True, project=_project_id(), location=_location())
+    model = image_model()
+    response = client.models.generate_images(
+        model=model,
+        prompt=prompt,
+        config=types.GenerateImagesConfig(
+            number_of_images=1,
+            aspect_ratio="1:1",
+        ),
+    )
+    generated = getattr(response, "generated_images", None) or []
+    if not generated:
+        raise RuntimeError("Imagen returned no images")
+    image = generated[0].image
+    data = getattr(image, "image_bytes", None)
+    if not data:
+        raise RuntimeError("Imagen response missing image bytes")
+    _save_image_bytes(data, design_id)
+    return model
+
+
 @app.get("/health")
 def health():
     return {
         "status": "ok",
         "service": os.getenv("SERVICE_NAME", "board-generator"),
         "environment": os.getenv("ENVIRONMENT", "local"),
-        "openai_configured": bool(os.getenv("OPENAI_API_KEY")),
-        "ai_models": [os.getenv("AI_MODEL", "gpt-image-1")],
+        "image_provider": image_provider(),
+        "image_configured": is_configured(),
+        "ai_models": [image_model()],
         "monitoring": ["cspm", "ai-spm", "container-runtime", "cloud-xdr"],
     }
 
@@ -174,8 +232,8 @@ def get_image(design_id: str):
 
 @app.post("/generate", response_model=BoardDesignResponse)
 async def generate_board(req: BoardDesignRequest):
-    if not os.getenv("OPENAI_API_KEY"):
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY not configured")
+    if not is_configured():
+        raise HTTPException(status_code=503, detail="Image provider not configured")
 
     prompt = build_prompt(req)
     design_id = str(uuid.uuid4())[:8]
@@ -185,21 +243,25 @@ async def generate_board(req: BoardDesignRequest):
     last_error: Exception | None = None
 
     try:
-        for model in _models_to_try():
-            try:
-                kwargs = _build_generate_kwargs(model, prompt)
-                response = client.images.generate(**kwargs)
-                await _fetch_image_from_response(response, design_id)
-                model_used = model
-                break
-            except Exception as exc:
-                last_error = exc
-                err = str(exc).lower()
-                if "model" in err and ("does not exist" in err or "invalid" in err):
-                    continue
-                raise
+        if image_provider() == "vertex":
+            model_used = _generate_vertex_image(prompt, design_id)
         else:
-            raise last_error or HTTPException(status_code=502, detail="No image model available")
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            for model in _models_to_try():
+                try:
+                    kwargs = _build_generate_kwargs(model, prompt)
+                    response = client.images.generate(**kwargs)
+                    await _fetch_image_from_response(response, design_id)
+                    model_used = model
+                    break
+                except Exception as exc:
+                    last_error = exc
+                    err = str(exc).lower()
+                    if "model" in err and ("does not exist" in err or "invalid" in err):
+                        continue
+                    raise
+            else:
+                raise last_error or HTTPException(status_code=502, detail="No image model available")
 
         audit_ai_inference(
             model=model_used,

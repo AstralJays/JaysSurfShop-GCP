@@ -7,6 +7,7 @@ pydantic==2.10.3
 google-cloud-storage==2.19.0
 google-cloud-secret-manager==2.21.1
 google-api-python-client==2.159.0
+google-genai==1.14.0
 # Workshop SCA: intentional AI CVEs — do not ship to production
 # CVE-2024-5998 (FAISS pickle deserialize) in langchain-community < 0.2.4 / langchain < 0.2.9
 langchain-community==0.2.3

@@ -20,8 +20,8 @@
 
 ```
 Internet → frontend (GKE LoadBalancer or Cloud Run)
-              ├── chat-rag (RAG + GPT-4o-mini, CVE-2023-50447)
-              └── board-generator (DALL·E / gpt-image)
+              ├── chat-rag (RAG + Vertex Gemini / OpenAI fallback)
+              └── board-generator (Imagen / OpenAI images)
 
 Internet → order-webhook (serverless — EICAR + PyYAML CVE-2020-14343)
               ↑ checkout from cart
@@ -30,8 +30,8 @@ Internet → order-webhook (serverless — EICAR + PyYAML CVE-2020-14343)
 | Service | Stack | Port / entry |
 |---------|-------|--------------|
 | **frontend** | Next.js 15, React, Tailwind | 3000 |
-| **chat-rag** | FastAPI, ChromaDB, OpenAI, exploit lab | 8001 |
-| **board-generator** | FastAPI, image generation | 8002 |
+| **chat-rag** | FastAPI, ChromaDB, Vertex Gemini (default) or OpenAI | 8001 |
+| **board-generator** | FastAPI, Imagen (default) or OpenAI images | 8002 |
 | **order-webhook** | Python serverless (Cloud Function Gen2) | `/checkout`, `/demo/*` |
 
 ### Integrating security tooling
@@ -46,7 +46,8 @@ Same app as the AWS repo — identical `frontend/`, `services/`, and `docker-com
 
 ```bash
 cp .env.example .env
-# Set OPENAI_API_KEY
+# Local default is OpenAI — set OPENAI_API_KEY
+# On GKE/Cloud Run, LLM_PROVIDER=vertex uses Gemini + text-embedding-004 (no OpenAI key)
 
 docker compose up --build
 ```
@@ -72,7 +73,7 @@ Choose **Cloud Run** or **GKE** — both share VPC, Artifact Registry, Secret Ma
 # 4. Full stack — set image_tag in terraform.tfvars to the commit SHA from CI, or latest
 cp infrastructure/cloud-run/terraform/terraform.tfvars.example \
    infrastructure/cloud-run/terraform/terraform.tfvars
-# Set project_id, openai_api_key in terraform.tfvars
+# Set project_id in terraform.tfvars (openai_api_key optional when using Vertex)
 ./infrastructure/scripts/deploy-cloud-run.sh   # or: deploy-gke.sh
 ```
 

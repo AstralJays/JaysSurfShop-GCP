@@ -17,6 +17,13 @@ resource "google_project_iam_member" "app_demo_editor" {
   member  = "serviceAccount:${google_service_account.app.email}"
 }
 
+# Explicit Vertex AI access (also covered by demo roles/editor)
+resource "google_project_iam_member" "app_aiplatform_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.app.email}"
+}
+
 resource "google_container_cluster" "main" {
   name     = "${local.name_prefix}-gke"
   project  = var.project_id

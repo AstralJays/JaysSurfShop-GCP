@@ -3,7 +3,10 @@ region       = "us-central1"
 project_name = "jays-surf-shop"
 environment  = "demo"
 
-# openai_api_key = "sk-..."
+# Defaults: Vertex Gemini + Imagen (no OpenAI required)
+# llm_provider   = "vertex"
+# image_provider = "vertex"
+# openai_api_key = "sk-..."   # only if llm_provider/image_provider = "openai"
 
 # Upwind tracer credentials for order-webhook (Sensor type in Upwind console)
 # upwind_client_id     = "..."

@@ -19,19 +19,23 @@ locals {
       { name = "SERVICE_NAME", value = "chat-rag" },
       { name = "ENVIRONMENT", value = var.environment },
       { name = "GCP_REGION", value = var.region },
+      { name = "GOOGLE_CLOUD_PROJECT", value = var.project_id },
       { name = "DEPLOYMENT_ID", value = local.name_prefix },
       { name = "LOG_FORMAT", value = "json" },
-      { name = "AI_MODEL_CHAT", value = "gpt-4o-mini" },
-      { name = "AI_MODEL_EMBED", value = "text-embedding-3-small" },
+      { name = "LLM_PROVIDER", value = var.llm_provider },
+      { name = "AI_MODEL_CHAT", value = var.llm_provider == "vertex" ? var.vertex_chat_model : "gpt-4o-mini" },
+      { name = "AI_MODEL_EMBED", value = var.llm_provider == "vertex" ? var.vertex_embed_model : "text-embedding-3-small" },
     ]
     board-generator = [
       { name = "SERVICE_NAME", value = "board-generator" },
       { name = "ENVIRONMENT", value = var.environment },
       { name = "GCP_REGION", value = var.region },
+      { name = "GOOGLE_CLOUD_PROJECT", value = var.project_id },
       { name = "DEPLOYMENT_ID", value = local.name_prefix },
       { name = "LOG_FORMAT", value = "json" },
       { name = "GCS_BUCKET", value = module.workshop.board_images_bucket },
-      { name = "AI_MODEL", value = "gpt-image-1" },
+      { name = "IMAGE_PROVIDER", value = var.image_provider },
+      { name = "AI_MODEL", value = var.image_provider == "vertex" ? var.vertex_image_model : "gpt-image-1" },
     ]
   }
 }
@@ -52,6 +56,12 @@ resource "google_project_iam_member" "apps_storage_admin" {
 resource "google_project_iam_member" "apps_demo_editor" {
   project = var.project_id
   role    = "roles/editor"
+  member  = "serviceAccount:${google_service_account.apps.email}"
+}
+
+resource "google_project_iam_member" "apps_aiplatform_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
   member  = "serviceAccount:${google_service_account.apps.email}"
 }
 

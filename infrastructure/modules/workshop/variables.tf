@@ -38,8 +38,10 @@ variable "github_scan_repo" {
 }
 
 variable "openai_api_key" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "Optional OpenAI key (local / openai LLM_PROVIDER fallback). Not required for Vertex."
 }
 
 variable "allowed_cidr_blocks" {

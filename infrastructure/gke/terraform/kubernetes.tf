@@ -19,8 +19,9 @@ locals {
       { name = "GOOGLE_CLOUD_PROJECT", value = var.project_id },
       { name = "DEPLOYMENT_ID", value = local.name_prefix },
       { name = "LOG_FORMAT", value = "json" },
-      { name = "AI_MODEL_CHAT", value = "gpt-4o-mini" },
-      { name = "AI_MODEL_EMBED", value = "text-embedding-3-small" },
+      { name = "LLM_PROVIDER", value = var.llm_provider },
+      { name = "AI_MODEL_CHAT", value = var.llm_provider == "vertex" ? var.vertex_chat_model : "gpt-4o-mini" },
+      { name = "AI_MODEL_EMBED", value = var.llm_provider == "vertex" ? var.vertex_embed_model : "text-embedding-3-small" },
       { name = "IMPERSONATION_TARGET_SA", value = google_service_account.prod.email },
       { name = "WORKSHOP_DEV_SERVICE_ACCOUNT", value = google_service_account.dev.email },
       { name = "LEAKED_DEV_KEY_PATH", value = "/var/run/demo/leaked-dev-sa.json" },
@@ -29,10 +30,12 @@ locals {
       { name = "SERVICE_NAME", value = "board-generator" },
       { name = "ENVIRONMENT", value = var.environment },
       { name = "GCP_REGION", value = var.region },
+      { name = "GOOGLE_CLOUD_PROJECT", value = var.project_id },
       { name = "DEPLOYMENT_ID", value = local.name_prefix },
       { name = "LOG_FORMAT", value = "json" },
       { name = "GCS_BUCKET", value = module.workshop.board_images_bucket },
-      { name = "AI_MODEL", value = "gpt-image-1" },
+      { name = "IMAGE_PROVIDER", value = var.image_provider },
+      { name = "AI_MODEL", value = var.image_provider == "vertex" ? var.vertex_image_model : "gpt-image-1" },
     ]
   }
 }

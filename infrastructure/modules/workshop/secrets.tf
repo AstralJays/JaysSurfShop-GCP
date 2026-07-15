@@ -11,5 +11,6 @@ resource "google_secret_manager_secret" "openai_api_key" {
 
 resource "google_secret_manager_secret_version" "openai_api_key" {
   secret      = google_secret_manager_secret.openai_api_key.id
-  secret_data = var.openai_api_key
+  # Secret Manager rejects empty payloads; placeholder when running Vertex-only.
+  secret_data = length(var.openai_api_key) > 0 ? var.openai_api_key : "not-configured"
 }

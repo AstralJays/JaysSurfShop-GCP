@@ -20,8 +20,8 @@ const BASE = {
       { path: "/chat", note: "Shop Crew UI" },
       { path: "/design", note: "Create-A-Board UI" },
       { path: "/admin", note: "Staff ops — middleware bypassable (CVE-2025-29927)" },
-      { path: "/api/chat", note: "Unauthenticated → OpenAI" },
-      { path: "/api/board", note: "Unauthenticated → image gen" },
+      { path: "/api/chat", note: "Unauthenticated → Vertex Gemini (or OpenAI)" },
+      { path: "/api/board", note: "Unauthenticated → Imagen / image gen" },
       { path: "/api/checkout", note: "Cart checkout → order webhook (YAML when poisoned)" },
       { path: "/api/legacy/download", note: "Legacy file download (path traversal PoC)" },
       { path: "/api/reindex", note: "Unauth RAG rebuild (PoC)" },
@@ -32,13 +32,13 @@ const BASE = {
     ],
     private: [
       { path: "/admin", note: "Staff ops — middleware cookie gate (CVE-2025-29927 bypassable)" },
-      { path: "chat-rag:8001/chat", note: "RAG + GPT-4o-mini" },
+      { path: "chat-rag:8001/chat", note: "RAG + Gemini (Vertex) / OpenAI" },
       { path: "chat-rag:8001/demo/exploit/*", note: "Exploit lab" },
       { path: "chat-rag:8001/reindex", note: "Unauthenticated admin (local compose)" },
-      { path: "board-generator:8002/generate", note: "DALL·E / gpt-image" },
+      { path: "board-generator:8002/generate", note: "Imagen (Vertex) / OpenAI images" },
     ],
-    external: ["openai-api"],
-    secrets: ["openai-api-key (Secret Manager on GCP)"],
+    external: ["vertex-ai", "openai-api (optional)"],
+    secrets: ["Workload Identity → Vertex; openai-api-key optional (Secret Manager)"],
   },
 };
 

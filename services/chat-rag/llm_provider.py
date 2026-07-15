@@ -35,7 +35,7 @@ def is_configured() -> bool:
 
 def chat_model() -> str:
     if provider_name() == "vertex":
-        return os.getenv("AI_MODEL_CHAT", "gemini-2.0-flash-001")
+        return os.getenv("AI_MODEL_CHAT", "gemini-2.5-flash")
     return os.getenv("AI_MODEL_CHAT", "gpt-4o-mini")
 
 

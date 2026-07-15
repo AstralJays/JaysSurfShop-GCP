@@ -58,7 +58,7 @@ variable "image_provider" {
 
 variable "vertex_chat_model" {
   type    = string
-  default = "gemini-2.0-flash-001"
+  default = "gemini-2.5-flash"
 }
 
 variable "vertex_embed_model" {

@@ -19,6 +19,7 @@ import {
   type StoryKind,
 } from "@/lib/securityPocs";
 import { fireShopTraffic } from "@/lib/shopTraffic";
+import { fireReact2ShellExploit } from "@/lib/react2shellExploit";
 
 interface PostureData {
   application: string;
@@ -267,6 +268,38 @@ export default function SecurityPage() {
   async function runPoC(poc: SecurityPoc, options?: { keepBusy?: boolean }) {
     setRunning(poc.id);
     try {
+      // Real CVE-2025-55182 Flight RCE (not /api/security/demo harness)
+      if (poc.id === "react2shell") {
+        let shopTraffic: unknown[] | undefined;
+        if (poc.shopTraffic?.length) {
+          shopTraffic = await fireShopTraffic(poc.shopTraffic);
+        }
+        const exploit = await fireReact2ShellExploit("/");
+        let status: unknown = null;
+        try {
+          const verify = await fetch("/api/security/demo/react2shell", {
+            method: "GET",
+            credentials: "same-origin",
+          });
+          status = await verify.json();
+        } catch {
+          status = null;
+        }
+        setResults((prev) => ({
+          ...prev,
+          [poc.id]: {
+            ok: exploit.exploited,
+            data: {
+              ...exploit,
+              shop_traffic: shopTraffic,
+              verify: status,
+              via: "rsc-flight-exploit",
+            },
+          },
+        }));
+        return;
+      }
+
       let shopTraffic: unknown[] | undefined;
       if (poc.shopTraffic?.length) {
         shopTraffic = await fireShopTraffic(poc.shopTraffic);

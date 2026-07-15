@@ -1,220 +1,63 @@
-import { spawnSync } from "child_process";
-import { copyFileSync, chmodSync, existsSync, writeFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { NextResponse } from "next/server";
 
 /**
- * Workshop React2Shell (CVE-2025-55182 / CVE-2025-66478) impact harness.
- *
- * The frontend ships a vulnerable Next.js App Router + React 19 pair for SCA.
- * This route runs the post-compromise process toolkit inside the Next.js Node
- * process — the same execution boundary an attacker gets after RSC Flight RCE.
- * It does not embed a public Flight protocol gadget.
- *
- * Process shapes intentionally match common detection/event patterns security tools look for
- * surfaces well (esp. `sh -c -- id > …` and `exec -a xmrig sleep`), not just
- * a renamed sleep binary (crypto Detection-only).
+ * Status-only verifier for React2Shell workshop RCE.
+ * Exploitation is performed by the browser via RSC Flight (see react2shellExploit.ts).
+ * This route only reads marker files left by the real child_process payload.
  */
 
 const MARKER = "/tmp/jss-react2shell.txt";
 const ID_FILE = "/tmp/jss-react2shell-id.txt";
-const MINER = "/tmp/xmrig-frontend";
-const DOWNLOADER = "/tmp/.wget-frontend";
 
-function run(cmd: string[]): {
-  command: string[];
-  returncode: number | null;
-  stdout: string;
-  stderr: string;
-  error?: string;
-} {
+function readMaybe(path: string): string | null {
   try {
-    const proc = spawnSync(cmd[0], cmd.slice(1), {
-      encoding: "utf-8",
-      timeout: 12000,
-    });
-    return {
-      command: cmd,
-      returncode: proc.status,
-      stdout: (proc.stdout || "").trim(),
-      stderr: (proc.stderr || "").trim(),
-    };
-  } catch (err) {
-    return {
-      command: cmd,
-      returncode: null,
-      stdout: "",
-      stderr: "",
-      error: err instanceof Error ? err.message : String(err),
-    };
+    if (!existsSync(path)) return null;
+    return readFileSync(path, "utf-8").trim();
+  } catch {
+    return null;
   }
 }
 
-export async function POST() {
-  const nextVersion = process.env.npm_package_dependencies_next || "15.1.0";
-  const chain: Array<Record<string, unknown>> = [];
-
-  chain.push({
-    step: 0,
-    mitre: ["T1190"],
-    tactic: "Initial Access",
-    action: "unauthenticated_rsc_surface",
-    note: "Next.js App Router / React Server Components Flight endpoint reachable without auth",
-    packages: {
-      next: "15.1.0",
-      react: "19.0.0",
-      cves: ["CVE-2025-55182", "CVE-2025-66478"],
-    },
-  });
-
-  chain.push({
-    step: 1,
-    mitre: ["T1203"],
-    tactic: "Execution",
-    action: "react2shell_rce_boundary",
-    cve: "CVE-2025-55182",
-    pattern: "rsc_flight_deserialization_rce",
-    note:
-      "Workshop impact harness executes in the Next.js Node process — same boundary as React2Shell RCE after crafted RSC payload.",
-    exploited: true,
-  });
-
-  // Detection-shaped: sh -c -- id > file (matches pillow / Jul-7 Drift Detection)
-  const idRedirect = run(["sh", "-c", "--", `id > ${ID_FILE}`]);
-  const idDirect = run(["id", "-a"]);
-  writeFileSync(
-    MARKER,
-    `react2shell:${idDirect.stdout}\nnext=${nextVersion}\n`,
-    "utf-8"
-  );
-  chain.push({
-    step: 2,
-    mitre: ["T1059.004"],
-    tactic: "Execution",
-    action: "post_exploit_identity_probe",
-    processes: {
-      sh_c_id_redirect: idRedirect,
-      discrete_id: idDirect,
-    },
-    marker_file: MARKER,
-    id_file: ID_FILE,
-  });
-
-  // Shell Process Redirect + discrete tee (Events + Shell Redirect Detection)
-  const shellPipe = run(["sh", "-c", "--", `id 2>&1 | tee -a ${MARKER}`]);
-  const teePipe = run(["sh", "-c", "--", `id | tee ${MARKER}.tee`]);
-  chain.push({
-    step: 3,
-    mitre: ["T1059.004"],
-    tactic: "Execution",
-    action: "shell_pipe_redirect",
-    processes: {
-      shell_pipe: shellPipe,
-      tee_via_shell: teePipe,
-    },
-  });
-
-  const curlPath = "/usr/bin/curl";
-  let renamed: Record<string, unknown> = { skipped: true };
-  try {
-    copyFileSync(curlPath, DOWNLOADER);
-    chmodSync(DOWNLOADER, 0o755);
-    const out = "/tmp/jss-react2shell-downloader.out";
-    const dl = run([
-      DOWNLOADER,
-      "-fsSL",
-      "--max-time",
-      "8",
-      "https://icanhazip.com",
-      "-o",
-      out,
-    ]);
-    renamed = {
-      downloader_path: DOWNLOADER,
-      process: dl,
-      downloaded: existsSync(out),
-    };
-  } catch (err) {
-    renamed = { error: err instanceof Error ? err.message : String(err) };
-  }
-  chain.push({
-    step: 4,
-    mitre: ["T1027"],
-    tactic: "Defense Evasion",
-    action: "renamed_downloader_execution",
-    ...renamed,
-  });
-
-  const sensitive = ["/etc/passwd", "/etc/hosts"].map((path) => ({
-    path,
-    ...run(["cat", path]),
-  }));
-  chain.push({
-    step: 5,
-    mitre: ["T1005"],
-    tactic: "Collection",
-    action: "sensitive_system_file_cat",
-    files: sensitive,
-  });
-
-  // Crypto Detection: argv0=xmrig via exec -a PLUS renamed sleep binary
-  let miner: Record<string, unknown> = {};
-  try {
-    copyFileSync("/bin/sleep", MINER);
-    chmodSync(MINER, 0o755);
-    miner = {
-      miner_path: MINER,
-      exec_a_xmrig: run(["sh", "-c", "--", "exec -a xmrig sleep 3"]),
-      renamed_binary: run([MINER, "2"]),
-      warning: "Synthetic xmrig — exec -a + sleep binary renamed; no real mining",
-    };
-  } catch (err) {
-    miner = { error: err instanceof Error ? err.message : String(err) };
-  }
-  chain.push({
-    step: 6,
-    mitre: ["T1496"],
-    tactic: "Impact",
-    action: "cryptominer_simulation",
-    ...miner,
-  });
+export async function GET() {
+  const marker = readMaybe(MARKER);
+  const idFile = readMaybe(ID_FILE);
+  const passwd = readMaybe("/tmp/jss-react2shell-passwd.txt");
+  const rceConfirmed = Boolean(marker?.includes("react2shell") || idFile);
 
   return NextResponse.json({
-    exploited: true,
-    pattern: "react2shell_post_compromise_chain",
+    exploited: rceConfirmed,
+    pattern: "rsc_flight_deserialization_rce",
     cve: "CVE-2025-55182",
     related_cves: ["CVE-2025-66478"],
-    scope: "frontend-nextjs-container",
-    instrumentation: "runs-in-nextjs-node-process",
-    mitre_attack: {
-      tactics: [
-        "Initial Access",
-        "Execution",
-        "Defense Evasion",
-        "Collection",
-        "Impact",
-      ],
-      techniques: ["T1190", "T1203", "T1059.004", "T1027", "T1005", "T1496"],
-    },
-    chain,
+    rce_confirmed: rceConfirmed,
+    marker_file: MARKER,
+    marker_preview: marker?.slice(0, 240) ?? null,
+    id_file: ID_FILE,
+    id_preview: idFile?.slice(0, 240) ?? null,
+    passwd_preview: passwd?.slice(0, 120) ?? null,
     narrative:
-      "React2Shell (CVE-2025-55182): unauthenticated RSC Flight RCE on Next.js App Router. " +
-      "This lab harness demonstrates the post-compromise toolkit inside the frontend container " +
-      "(id redirect → shell pipe → renamed downloader → sensitive cat → miner) — then continue to metadata / Cloud XDR.",
-    presenter_notes: {
-      sca: "Pin next@15.1.0 and react@19.0.0 for scanner Critical findings",
-      runtime:
-        "Expect Process Events for id/tee/cat AND Detections for sh -c -- id > file + crypto mining (xmrig). " +
-        "Investigation feed often highlights mining Detection first — expand Events / Process filter for the rest.",
-      next_step: "Run metadata-creds PoC, then continue Cloud XDR story",
-      serverless_parallel:
-        "Serverless uses PyYAML checkout RCE instead — same MITRE shape, different surface",
-    },
+      "Verification only — RCE must come from a crafted Next-Action Flight POST to /, not this route.",
     signals: [
       "Operating system utilities processes",
       "Shell Process Redirect",
       "Crypto mining threats",
       "Sensitive file access",
-      "Out Of Baseline",
     ],
   });
+}
+
+/** POST kept for older clients — redirects them to use the real exploit path. */
+export async function POST() {
+  return NextResponse.json(
+    {
+      exploited: false,
+      error: "harness_removed",
+      message:
+        "Use the /security React2Shell PoC — it fires a real CVE-2025-55182 Flight payload at /. " +
+        "GET this route only to verify /tmp markers after RCE.",
+      verify: "GET /api/security/demo/react2shell",
+    },
+    { status: 410 }
+  );
 }

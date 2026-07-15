@@ -166,7 +166,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "CVE-2025-55182",
     title: "Exploit React2Shell on the frontend",
     method: "POST",
-    apiPath: "/api/security/demo/react2shell",
+    apiPath: "/",
+    shopTrafficOnly: true,
     shopTraffic: [
       {
         method: "GET",
@@ -180,10 +181,12 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Shell Process Redirect",
       "Crypto mining threats",
       "Sensitive file access",
+      "RSC Flight / Next-Action exploit traffic",
     ],
     description:
-      "Uses React2Shell (CVE-2025-55182) against Next.js App Router to run post-RCE tooling in the frontend process.",
-    outcome: "Process activity (shell, downloader, sensitive reads, miner sim) from the frontend container.",
+      "Browser POSTs a real CVE-2025-55182 RSC Flight multipart payload (Next-Action) to / — unauthenticated RCE in the Next.js process, then post-exploit toolkit.",
+    outcome:
+      "Real Flight deserialization RCE; id/tee/cat/xmrig argv0 processes from the frontend container (not a demo harness).",
   },
   {
     id: "pillow-rce",
@@ -660,9 +663,9 @@ export const POC_STORIES: PocStory[] = [
     targetResource: "frontend + order-webhook",
     title: "Frontend RCE → serverless checkout",
     blurb:
-      "Exploits React2Shell on the storefront, redirects a shell on Cloud Run, then sends a poisoned order webhook.",
+      "Fires a real CVE-2025-55182 RSC Flight exploit against the storefront, redirects a shell on Cloud Run, then sends a poisoned order webhook.",
     underTheHood:
-      "Frontend Node post-RCE toolkit, Cloud Run shell pipe, then PyYAML deserialization on the order webhook.",
+      "Unauthenticated Next-Action Flight deserialization RCE in frontend Node, Cloud Run shell pipe, then PyYAML deserialization on the order webhook.",
     lookFor: "Process on frontend · Cloud Run shell · unsafe YAML · follow-on crypto / identity noise",
     stepGapSeconds: 8,
     pocIds: ["react2shell", "shell-pipe-cloudrun", "order-yaml-checkout"],

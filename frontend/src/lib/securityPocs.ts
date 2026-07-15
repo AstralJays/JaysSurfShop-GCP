@@ -5,6 +5,8 @@ import {
   AI_UNBOUNDED_PROMPTS,
   AI_XSS_PROMPT,
   MIDDLEWARE_BYPASS_HEADER,
+  ORDER_HIJACK_DISCOVER,
+  ORDER_HIJACK_SHIP,
   PROMPT_INJECTION,
   TRAVERSAL_SHOP_PATH,
   YAML_CHECKOUT_BODY,
@@ -70,7 +72,7 @@ export const POC_CATEGORIES: Array<{
   },
   {
     id: "ai",
-    label: "AI",
+    label: "AI & Maya",
     blurb: "OWASP LLM Top 10 style attacks against the shop assistant and RAG store.",
   },
 ];
@@ -362,6 +364,45 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Sends a poisoned POST /checkout to Cloud Run — unsafe YAML deserialize into a post-exploit sequence.",
     outcome: "Full serverless kill chain on the order webhook (process, identity, GCS, miner sim).",
   },
+
+  {
+    id: "ai-order-hijack",
+    category: "ai",
+    cve: "LLM02:2025 + LLM06:2025",
+    title: "Discover and hijack a shipment via support chat",
+    method: "POST",
+    apiPath: "/api/chat",
+    shopTrafficOnly: true,
+    shopTraffic: [
+      {
+        method: "POST",
+        path: "/api/auth/login",
+        body: { email: "jordan.lee@example.com", password: "jordanwaves" },
+        label: "login-jordan",
+      },
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: { message: ORDER_HIJACK_DISCOVER },
+        label: "maya-discover-orders",
+      },
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: { message: ORDER_HIJACK_SHIP },
+        label: "maya-hijack-ship",
+      },
+    ],
+    signals: [
+      "In-cloud AI inference (Vertex)",
+      "Cross-customer data disclosure",
+      "AI tool abuse (IDOR)",
+    ],
+    description:
+      "Signs in as Jordan and POSTs the real /api/chat hijack prompts — same path as /chat UI (no /api/security/demo).",
+    outcome: "Storefront chat traffic only; Sam's longboard redirects to Jordan's address.",
+  },
+
   {
     id: "ai-chat-unauth",
     category: "ai",
@@ -559,6 +600,28 @@ export const SECURITY_POCS: SecurityPoc[] = [
 ];
 
 export const POC_STORIES: PocStory[] = [
+
+  {
+    id: "ai-support-hijack",
+    category: "ai",
+    kind: "story",
+    storyIndex: 1,
+    targetResource: "chat-rag + Vertex",
+    title: "Free surfboard via support chat",
+    blurb:
+      "Jordan signs in, discovers Sam's paid longboard through Maya's order search, then redirects it to his saved address — UI auth was fine; the AI agent wasn't.",
+    underTheHood:
+      "search_orders (cross-tenant scan) → get_saved_shipping_address → update_shipping_address (no ownership check) on Vertex Gemini.",
+    lookFor:
+      "Vertex generate_content · order tool calls · LLM02 disclosure · LLM06 excessive agency · MITRE AML.T0051",
+    stepGapSeconds: 10,
+    pocIds: ["path-traversal", "ai-order-hijack", "metadata-creds", "sa-impersonation"],
+    continueIn: {
+      tab: "cloud-xdr",
+      storyId: "identity-to-data",
+      label: "Continue with identity → GCS",
+    },
+  },
   {
     id: "story-1-cve-probing",
     category: "container",

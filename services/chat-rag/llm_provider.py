@@ -161,6 +161,52 @@ def _openai_chat(
     )
 
 
+def _vertex_tool_config(tools: list[dict[str, Any]] | None) -> list[Any] | None:
+    if not tools:
+        return None
+    from google.genai import types
+
+    decls = [
+        types.FunctionDeclaration(
+            name=tool["name"],
+            description=tool["description"],
+            parameters=tool["parameters"],
+        )
+        for tool in tools
+    ]
+    return [types.Tool(function_declarations=decls)]
+
+
+def _parse_vertex_response(response: Any) -> tuple[str, list[dict[str, Any]], Any | None]:
+    """Return text, tool_calls, and the model Content (for multi-turn tool loops)."""
+    text_parts: list[str] = []
+    tool_calls: list[dict[str, Any]] = []
+    model_content = None
+
+    candidates = getattr(response, "candidates", None) or []
+    if candidates:
+        model_content = getattr(candidates[0], "content", None)
+        for part in getattr(model_content, "parts", None) or []:
+            if getattr(part, "text", None):
+                text_parts.append(part.text)
+            fn = getattr(part, "function_call", None)
+            if fn:
+                args = dict(getattr(fn, "args", None) or {})
+                name = getattr(fn, "name", "") or ""
+                tool_calls.append(
+                    {
+                        "id": f"{name}-{len(tool_calls)}",
+                        "name": name,
+                        "arguments": args,
+                    }
+                )
+
+    if not text_parts and hasattr(response, "text") and response.text:
+        text_parts.append(response.text)
+
+    return "\n".join(text_parts).strip(), tool_calls, model_content
+
+
 def _vertex_chat(
     messages: list[dict[str, str]],
     *,
@@ -177,17 +223,9 @@ def _vertex_chat(
     }
     if system:
         config_kwargs["system_instruction"] = system
-    if tools:
-        # Vertex function calling — optional; shop chat currently unused without tools.
-        decls = [
-            types.FunctionDeclaration(
-                name=tool["name"],
-                description=tool["description"],
-                parameters=tool["parameters"],
-            )
-            for tool in tools
-        ]
-        config_kwargs["tools"] = [types.Tool(function_declarations=decls)]
+    tool_cfg = _vertex_tool_config(tools)
+    if tool_cfg:
+        config_kwargs["tools"] = tool_cfg
 
     response = _vertex_client().models.generate_content(
         model=chat_model(),
@@ -195,20 +233,142 @@ def _vertex_chat(
         config=types.GenerateContentConfig(**config_kwargs),
     )
 
-    text = (response.text or "").strip() if hasattr(response, "text") else ""
-    if not text and getattr(response, "candidates", None):
-        parts: list[str] = []
-        for cand in response.candidates:
-            content = getattr(cand, "content", None)
-            for part in getattr(content, "parts", None) or []:
-                if getattr(part, "text", None):
-                    parts.append(part.text)
-        text = "\n".join(parts).strip()
-
+    text, tool_calls, _ = _parse_vertex_response(response)
     usage = getattr(response, "usage_metadata", None)
     return ChatResult(
         content=text,
-        tool_calls=[],
+        tool_calls=tool_calls,
         input_tokens=getattr(usage, "prompt_token_count", None) if usage else None,
         output_tokens=getattr(usage, "candidates_token_count", None) if usage else None,
     )
+
+
+def run_vertex_tool_loop(
+    messages: list[dict[str, str]],
+    tools: list[dict[str, Any]],
+    *,
+    execute_tool_fn,
+    temperature: float = 0.35,
+    max_tokens: int = 600,
+    max_rounds: int = 4,
+) -> ChatResult:
+    """Accumulate Vertex generate_content turns until the model stops requesting tools."""
+    from google.genai import types
+
+    tool_activity: list[dict[str, str]] = []
+    input_tokens = 0
+    output_tokens = 0
+    system, turns = _split_system(messages)
+    contents: list[Any] = _vertex_contents(turns)
+    text = ""
+
+    config_kwargs: dict[str, Any] = {
+        "temperature": temperature,
+        "max_output_tokens": max_tokens,
+        "tools": _vertex_tool_config(tools),
+    }
+    if system:
+        config_kwargs["system_instruction"] = system
+
+    for _ in range(max_rounds):
+        response = _vertex_client().models.generate_content(
+            model=chat_model(),
+            contents=contents,
+            config=types.GenerateContentConfig(**config_kwargs),
+        )
+        usage = getattr(response, "usage_metadata", None)
+        if usage:
+            input_tokens += getattr(usage, "prompt_token_count", 0) or 0
+            output_tokens += getattr(usage, "candidates_token_count", 0) or 0
+
+        text, tool_calls, model_content = _parse_vertex_response(response)
+        if model_content is not None:
+            contents.append(model_content)
+
+        if not tool_calls:
+            break
+
+        result_parts: list[Any] = []
+        for call in tool_calls:
+            payload = execute_tool_fn(call["name"], call["arguments"])
+            tool_activity.append(
+                {
+                    "tool": call["name"],
+                    "arguments": str(call["arguments"]),
+                    "result_preview": payload[:240],
+                }
+            )
+            # Vertex expects a JSON-serializable object, not a raw string.
+            try:
+                parsed = json.loads(payload)
+            except json.JSONDecodeError:
+                parsed = {"result": payload}
+            result_parts.append(
+                types.Part.from_function_response(name=call["name"], response=parsed)
+            )
+        contents.append(types.Content(role="user", parts=result_parts))
+
+    result = ChatResult(
+        content=text,
+        tool_calls=[],
+        input_tokens=input_tokens or None,
+        output_tokens=output_tokens or None,
+    )
+    result.tool_activity = tool_activity  # type: ignore[attr-defined]
+    return result
+
+
+def continue_with_tool_results(
+    messages: list[dict[str, str]],
+    assistant_tool_calls: list[dict[str, Any]],
+    tool_results: list[dict[str, Any]],
+    *,
+    tools: list[dict[str, Any]] | None = None,
+    temperature: float = 0.3,
+    max_tokens: int = 500,
+) -> ChatResult:
+    """OpenAI-style follow-up after tool results (Vertex uses run_vertex_tool_loop instead)."""
+    if provider_name() == "vertex":
+        # Prefer the dedicated loop; this path is for OpenAI-compatible callers.
+        def _noop_execute(name: str, arguments: dict[str, Any]) -> str:
+            for result in tool_results:
+                if result.get("tool_call_id", "").startswith(name):
+                    return result["content"]
+            return json.dumps({"error": "missing tool result"})
+
+        return run_vertex_tool_loop(
+            messages,
+            tools or [],
+            execute_tool_fn=_noop_execute,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            max_rounds=1,
+        )
+
+    followup: list[dict[str, Any]] = list(messages)
+    followup.append(
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": call["id"],
+                    "type": "function",
+                    "function": {
+                        "name": call["name"],
+                        "arguments": json.dumps(call["arguments"]),
+                    },
+                }
+                for call in assistant_tool_calls
+            ],
+        }
+    )
+    for result in tool_results:
+        followup.append(
+            {
+                "role": "tool",
+                "tool_call_id": result["tool_call_id"],
+                "content": result["content"],
+            }
+        )
+    return _openai_chat(followup, tools=tools, temperature=temperature, max_tokens=max_tokens)

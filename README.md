@@ -42,7 +42,8 @@ GKE vs Cloud Run differ as hosts (node sensor vs container-only runtime) — mat
 
 ## Quick start (local)
 
-Same app as the AWS repo — identical `frontend/`, `services/`, and `docker-compose.yml`:
+Same modernized shop as the AWS repo (Maya, login, orders, DVWA-style `/security` map) —
+with **Vertex Gemini** for chat and **GCP** cloud PoCs (metadata, SA impersonation, GCS).
 
 ```bash
 cp .env.example .env

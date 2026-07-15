@@ -102,13 +102,14 @@ export default function HomePage() {
             </footer>
           </blockquote>
           <div className="card p-8 bg-gradient-to-br from-ocean-50 to-sand-50">
-            <h3 className="font-display text-2xl font-bold text-ocean-900">Build your board or talk to Jay</h3>
+            <h3 className="font-display text-2xl font-bold text-ocean-900">Build your board or manage an order</h3>
             <p className="text-ocean-600 mt-2">
-              Create-A-Board lets you stat out a custom stick. Shop Crew is Jay — your in-store advisor for gear picks.
+              Sign in to see your orders, then chat with Maya about shipping. Create-A-Board stats out a custom stick.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/design" className="btn-primary">Create-A-Board</Link>
-              <Link href="/chat" className="btn-secondary">Shop Crew</Link>
+              <Link href="/login" className="btn-secondary">Sign in</Link>
+              <Link href="/chat" className="btn-secondary">Chat with Maya</Link>
             </div>
           </div>
         </div>

@@ -3,6 +3,9 @@ region       = "us-central1"
 project_name = "jays-surf-shop"
 environment  = "demo"
 
+# Restrict frontend LB + VPC HTTP (default is world-open for workshops)
+# allowed_cidr_blocks = ["203.0.113.10/32"]
+
 # Defaults: Vertex Gemini for chat; OpenAI for board images (Imagen optional if enabled)
 # llm_provider   = "vertex"
 # image_provider = "openai"

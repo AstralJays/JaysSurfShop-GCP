@@ -203,6 +203,8 @@ resource "kubernetes_service" "services" {
   spec {
     type = each.value.public ? "LoadBalancer" : "ClusterIP"
 
+    load_balancer_source_ranges = each.value.public ? var.allowed_cidr_blocks : []
+
     selector = {
       app = each.key
     }

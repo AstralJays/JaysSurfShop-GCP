@@ -21,7 +21,7 @@
 ```
 Internet → frontend (GKE LoadBalancer or Cloud Run)
               ├── chat-rag (RAG + Vertex Gemini / OpenAI fallback)
-              └── board-generator (Imagen / OpenAI images)
+              └── board-generator (OpenAI images by default; optional Vertex Imagen)
 
 Internet → order-webhook (serverless — EICAR + PyYAML CVE-2020-14343)
               ↑ checkout from cart
@@ -31,7 +31,7 @@ Internet → order-webhook (serverless — EICAR + PyYAML CVE-2020-14343)
 |---------|-------|--------------|
 | **frontend** | Next.js 15, React, Tailwind | 3000 |
 | **chat-rag** | FastAPI, ChromaDB, Vertex Gemini (default) or OpenAI | 8001 |
-| **board-generator** | FastAPI, Imagen (default) or OpenAI images | 8002 |
+| **board-generator** | FastAPI, OpenAI images (default) or Vertex Imagen | 8002 |
 | **order-webhook** | Python serverless (Cloud Function Gen2) | `/checkout`, `/demo/*` |
 
 ### Integrating security tooling

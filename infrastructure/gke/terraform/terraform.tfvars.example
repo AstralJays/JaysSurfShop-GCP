@@ -3,10 +3,10 @@ region       = "us-central1"
 project_name = "jays-surf-shop"
 environment  = "demo"
 
-# Defaults: Vertex Gemini + Imagen (no OpenAI required)
+# Defaults: Vertex Gemini for chat; OpenAI for board images (Imagen optional if enabled)
 # llm_provider   = "vertex"
-# image_provider = "vertex"
-# openai_api_key = "sk-..."   # only if llm_provider/image_provider = "openai"
+# image_provider = "openai"
+# openai_api_key = "sk-..."   # required for board-generator when image_provider = openai
 
 # github_deploy_repo = "AstralJays/JaysSurfShop-GCP"
 

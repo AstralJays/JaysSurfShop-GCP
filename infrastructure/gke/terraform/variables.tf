@@ -52,8 +52,8 @@ variable "llm_provider" {
 
 variable "image_provider" {
   type        = string
-  default     = "vertex"
-  description = "Image backend for board-generator: vertex (Imagen) or openai"
+  default     = "openai"
+  description = "Image backend for board-generator: openai (default; matches AWS) or vertex (Imagen, if enabled on the project)"
 }
 
 variable "vertex_chat_model" {

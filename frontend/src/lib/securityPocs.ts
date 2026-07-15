@@ -550,7 +550,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
       path: "/api/chat",
       body: { message },
       label: `maya-unbounded-${i + 1}`,
-    })),,
+    })),
     signals: ["Burst LLM/token spend", "No rate limit on AI API"],
     description:
       "OWASP LLM10 — fires multiple unauthenticated chat completions in one request (cost/availability).",

@@ -7,7 +7,7 @@ import { proxyChat } from "@/lib/demoLab";
  */
 export async function POST() {
   try {
-    const res = await proxyChat("/demo/exploit/langchain-ai", {
+    const res = await proxyChat("/ai/packages", {
       method: "POST",
     });
     const data = await res.json();

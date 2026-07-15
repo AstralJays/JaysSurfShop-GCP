@@ -373,4 +373,10 @@ def create_owasp_router(
             ),
         }
 
-    return router
+    shop = APIRouter(tags=["shop-ai"])
+    shop.add_api_route("/rag/poison", ai_poison, methods=["POST"])
+
+    root = APIRouter()
+    root.include_router(router)
+    root.include_router(shop)
+    return root

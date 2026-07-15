@@ -7,7 +7,7 @@ import { proxyChat } from "@/lib/demoLab";
  */
 export async function POST() {
   try {
-    const res = await proxyChat("/demo/exploit/ai-poison", { method: "POST" });
+    const res = await proxyChat("/rag/poison", { method: "POST" });
     const data = await res.json();
     return NextResponse.json(
       {

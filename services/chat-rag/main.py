@@ -152,6 +152,15 @@ app.include_router(
 )
 
 
+@app.post("/ai/packages")
+def ai_packages_shop():
+    """Shop-shaped alias for LangChain supply-chain workshop (not /demo/exploit/*)."""
+    from demo_exploits import exploit_langchain_ai
+
+    return exploit_langchain_ai()
+
+
+
 @app.on_event("startup")
 def startup():
     if not _openai_configured():

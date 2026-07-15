@@ -423,13 +423,19 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM03:2025",
     title: "Exercise vulnerable AI packages",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/langchain-ai",
+    apiPath: "/api/ai/packages",
+    shopTrafficOnly: true,
     shopTraffic: [
       {
         method: "POST",
         path: "/api/chat",
         body: { message: "What boards do you recommend for beginners?" },
         label: "maya-benign-chat",
+      },
+      {
+        method: "POST",
+        path: "/api/ai/packages",
+        label: "ai-packages",
       },
     ],
     signals: [
@@ -449,9 +455,10 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM04:2025",
     title: "Poison the vector store",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/ai-poison",
+    apiPath: "/api/rag/poison",
+    shopTrafficOnly: true,
     shopTraffic: [
-      { method: "POST", path: "/api/reindex", label: "rag-reindex" },
+      { method: "POST", path: "/api/rag/poison", label: "rag-poison" },
       {
         method: "POST",
         path: "/api/chat",
@@ -512,7 +519,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM08:2025",
     title: "Abuse vector / embedding retrieval",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/ai-rag-embedding",
+    apiPath: "/api/chat",
+    shopTrafficOnly: true,
     shopTraffic: [
       {
         method: "POST",

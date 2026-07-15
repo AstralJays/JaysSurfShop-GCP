@@ -25,6 +25,8 @@ const BASE = {
       { path: "/api/checkout", note: "Cart checkout → order webhook (YAML when poisoned)" },
       { path: "/api/legacy/download", note: "Legacy file download (path traversal PoC)" },
       { path: "/api/reindex", note: "Unauth RAG rebuild (PoC)" },
+      { path: "/api/rag/poison", note: "Unauth RAG poison write (PoC)" },
+      { path: "/api/ai/packages", note: "AI package / supply-chain probe (PoC)" },
       { path: "/api/security/posture", note: "Posture metadata" },
       { path: "/api/security/demo/*", note: "Process/cloud harness after shop-shaped HTTP" },
     ],

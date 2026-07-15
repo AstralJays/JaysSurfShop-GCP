@@ -33,8 +33,8 @@ interface PostureData {
   };
   findings: {
     exploit_lab_enabled: boolean;
-    aws_runtime: boolean;
-    lambda_enabled: boolean;
+    gcp_runtime: boolean;
+    function_enabled: boolean;
     eicar_present: boolean;
     is_local: boolean;
     cspm_misconfigurations: Array<{

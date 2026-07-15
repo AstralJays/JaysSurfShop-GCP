@@ -12,6 +12,7 @@ import {
   type SecurityPoc,
   type StoryKind,
 } from "@/lib/securityPocs";
+import { fireShopTraffic } from "@/lib/shopTraffic";
 
 interface PostureData {
   application: string;
@@ -259,12 +260,48 @@ export default function SecurityPage() {
   async function runPoC(poc: SecurityPoc, options?: { keepBusy?: boolean }) {
     setRunning(poc.id);
     try {
-      const res = await fetch(poc.apiPath, { method: poc.method });
+      let shopTraffic: unknown[] | undefined;
+      if (poc.shopTraffic?.length) {
+        shopTraffic = await fireShopTraffic(poc.shopTraffic);
+      }
+
+      if (poc.shopTrafficOnly) {
+        const last = Array.isArray(shopTraffic) ? shopTraffic[shopTraffic.length - 1] : null;
+        const data = {
+          exploited: true,
+          via: "shop-traffic",
+          shop_traffic: shopTraffic,
+          ...(last && typeof last === "object" && last !== null && "data" in last
+            ? { result: (last as { data: unknown }).data }
+            : {}),
+        };
+        setResults((prev) => ({ ...prev, [poc.id]: { ok: true, data } }));
+        return;
+      }
+
+      const init: RequestInit = {
+        method: poc.method,
+        credentials: "same-origin",
+        headers: {
+          ...(poc.body !== undefined ? { "Content-Type": "application/json" } : {}),
+          ...poc.headers,
+        },
+      };
+      if (poc.body !== undefined) {
+        init.body = JSON.stringify(poc.body);
+      }
+      const res = await fetch(poc.apiPath, init);
       let data: unknown;
       try {
         data = await res.json();
       } catch {
         data = { error: `Non-JSON response (${res.status})` };
+      }
+      if (shopTraffic) {
+        data =
+          data && typeof data === "object"
+            ? { ...(data as object), shop_traffic: shopTraffic }
+            : { result: data, shop_traffic: shopTraffic };
       }
       setResults((prev) => ({ ...prev, [poc.id]: { ok: res.ok, data } }));
     } catch (err) {

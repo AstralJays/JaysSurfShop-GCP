@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
-import { proxyChat } from "@/lib/demoLab";
 
+/** Removed — Pillow RCE is POST /api/catalog/preview. */
 export async function POST() {
-  try {
-    const res = await proxyChat("/demo/exploit/pillow", { method: "POST" });
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
-  } catch {
-    return NextResponse.json(
-      { detail: "chat-rag service unavailable" },
-      { status: 503 }
-    );
-  }
+  return NextResponse.json(
+    {
+      exploited: false,
+      error: "demo_api_removed",
+      message: "Use POST /api/catalog/preview (Create-A-Board image preview sink).",
+    },
+    { status: 410 }
+  );
 }

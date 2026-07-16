@@ -432,7 +432,9 @@ export default function SecurityPage() {
           A real-looking surf store where every area has something misconfigured. Shoppers buy
           boards, design customs, and chat with Maya. This lab auto-runs attack stories so your
           tooling sees the same HTTP as a shopper — <code>/api/chat</code>, <code>/api/checkout</code>,
-          <code>/api/legacy/download</code> — not only <code>/api/security/demo/*</code>.
+          <code>/api/catalog/preview</code>, <code>/api/legacy/download</code>,{" "}
+          <code>/api/chat</code>, <code>/api/checkout</code> — real shop sinks, not{" "}
+          <code>/api/security/demo/*</code>.
           detections have live signals.
         </p>
         <p className="mt-3 text-sm text-ocean-500">

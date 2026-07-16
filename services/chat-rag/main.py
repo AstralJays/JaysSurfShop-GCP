@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from audit_log import audit_ai_inference, audit_event
-from demo_exploits import register_legacy_routes, router as exploit_router
+from demo_exploits import register_legacy_routes, register_shop_routes
 from chat_service import run_tool_chat
 from embeddings import get_embedding_function
 from llm_provider import (
@@ -27,8 +27,9 @@ from users import authenticate, create_user, get_user, list_demo_accounts, list_
 load_dotenv()
 
 app = FastAPI(title="Jay's Surf Shop — Chat RAG", version="1.0.0")
-app.include_router(exploit_router)
+# Shop-shaped sinks only — no /demo/exploit mount (PoCs hit /catalog/preview, /legacy/download, /chat, …)
 register_legacy_routes(app)
+register_shop_routes(app)
 
 app.add_middleware(
     CORSMiddleware,

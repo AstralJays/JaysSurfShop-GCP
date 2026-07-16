@@ -366,10 +366,7 @@ def create_owasp_router(
             ),
         }
 
+    # Shop-shaped only — do not mount /demo/exploit AI twins (PoCs use /chat + /rag/poison).
     shop = APIRouter(tags=["shop-ai"])
     shop.add_api_route("/rag/poison", ai_poison, methods=["POST"])
-
-    root = APIRouter()
-    root.include_router(router)
-    root.include_router(shop)
-    return root
+    return shop

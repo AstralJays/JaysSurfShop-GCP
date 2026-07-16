@@ -20,10 +20,17 @@ resource "google_storage_bucket" "demo_public" {
   force_destroy               = true
 }
 
-# CSPM workshop finding: public read on demo export bucket
+# CSPM workshop finding: public read + list on demo export bucket
+# objectViewer includes storage.objects.get and storage.objects.list
 resource "google_storage_bucket_iam_member" "demo_public_read" {
   bucket = google_storage_bucket.demo_public.name
   role   = "roles/storage.objectViewer"
+  member = "allUsers"
+}
+
+resource "google_storage_bucket_iam_member" "demo_public_bucket_meta" {
+  bucket = google_storage_bucket.demo_public.name
+  role   = "roles/storage.legacyBucketReader"
   member = "allUsers"
 }
 

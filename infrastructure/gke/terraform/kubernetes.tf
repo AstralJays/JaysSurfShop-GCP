@@ -170,7 +170,7 @@ resource "kubernetes_deployment" "services" {
 
           readiness_probe {
             http_get {
-              path = each.key == "frontend" ? "/api/security/posture" : "/health"
+              path = each.key == "frontend" ? "/api/health" : "/health"
               port = each.value.port
             }
             initial_delay_seconds = 30
@@ -179,7 +179,7 @@ resource "kubernetes_deployment" "services" {
 
           liveness_probe {
             http_get {
-              path = each.key == "frontend" ? "/api/security/posture" : "/health"
+              path = each.key == "frontend" ? "/api/health" : "/health"
               port = each.value.port
             }
             initial_delay_seconds = 60

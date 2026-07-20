@@ -268,23 +268,13 @@ export default function SecurityPage() {
   async function runPoC(poc: SecurityPoc, options?: { keepBusy?: boolean }) {
     setRunning(poc.id);
     try {
-      // Real CVE-2025-55182 Flight RCE (not /api/security/demo harness)
+      // Real CVE-2025-55182 Flight RCE against public / (no /api/security/demo harness)
       if (poc.id === "react2shell") {
         let shopTraffic: unknown[] | undefined;
         if (poc.shopTraffic?.length) {
           shopTraffic = await fireShopTraffic(poc.shopTraffic);
         }
         const exploit = await fireReact2ShellExploit("/");
-        let status: unknown = null;
-        try {
-          const verify = await fetch("/api/security/demo/react2shell", {
-            method: "GET",
-            credentials: "same-origin",
-          });
-          status = await verify.json();
-        } catch {
-          status = null;
-        }
         setResults((prev) => ({
           ...prev,
           [poc.id]: {
@@ -292,7 +282,6 @@ export default function SecurityPage() {
             data: {
               ...exploit,
               shop_traffic: shopTraffic,
-              verify: status,
               via: "rsc-flight-exploit",
             },
           },
@@ -300,50 +289,31 @@ export default function SecurityPage() {
         return;
       }
 
-      let shopTraffic: unknown[] | undefined;
-      if (poc.shopTraffic?.length) {
-        shopTraffic = await fireShopTraffic(poc.shopTraffic);
-      }
-
-      if (poc.shopTrafficOnly) {
-        const last = Array.isArray(shopTraffic) ? shopTraffic[shopTraffic.length - 1] : null;
-        const data = {
-          exploited: true,
-          via: "shop-traffic",
-          shop_traffic: shopTraffic,
-          ...(last && typeof last === "object" && last !== null && "data" in last
-            ? { result: (last as { data: unknown }).data }
-            : {}),
-        };
-        setResults((prev) => ({ ...prev, [poc.id]: { ok: true, data } }));
+      if (!poc.shopTrafficOnly || !poc.shopTraffic?.length) {
+        setResults((prev) => ({
+          ...prev,
+          [poc.id]: {
+            ok: false,
+            data: {
+              error:
+                "PoC must use shopTrafficOnly with public storefront paths (external visitor traffic).",
+            },
+          },
+        }));
         return;
       }
 
-      const init: RequestInit = {
-        method: poc.method,
-        credentials: "same-origin",
-        headers: {
-          ...(poc.body !== undefined ? { "Content-Type": "application/json" } : {}),
-          ...poc.headers,
-        },
+      const shopTraffic = await fireShopTraffic(poc.shopTraffic);
+      const last = shopTraffic[shopTraffic.length - 1] ?? null;
+      const data = {
+        exploited: true,
+        via: "external-visitor-shop-traffic",
+        shop_traffic: shopTraffic,
+        ...(last && typeof last === "object" && last !== null && "data" in last
+          ? { result: (last as { data: unknown }).data }
+          : {}),
       };
-      if (poc.body !== undefined) {
-        init.body = JSON.stringify(poc.body);
-      }
-      const res = await fetch(poc.apiPath, init);
-      let data: unknown;
-      try {
-        data = await res.json();
-      } catch {
-        data = { error: `Non-JSON response (${res.status})` };
-      }
-      if (shopTraffic) {
-        data =
-          data && typeof data === "object"
-            ? { ...(data as object), shop_traffic: shopTraffic }
-            : { result: data, shop_traffic: shopTraffic };
-      }
-      setResults((prev) => ({ ...prev, [poc.id]: { ok: res.ok, data } }));
+      setResults((prev) => ({ ...prev, [poc.id]: { ok: true, data } }));
     } catch (err) {
       setResults((prev) => ({
         ...prev,
@@ -490,8 +460,8 @@ export default function SecurityPage() {
           <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Attack stories</h2>
           <p className="text-sm text-ocean-600 mb-6">
             Four headline chains — container CVEs, Cloud Functions & storefront CVEs, AI hijack, and
-            Cloud XDR — plus OWASP LLM and OWASP API Top 10 bundles. Each story runs real commands
-            and API calls.
+            Cloud XDR — plus OWASP LLM and OWASP API Top 10 bundles. Every step is external visitor
+            HTTP to the public site (no internal service shortcuts).
           </p>
 
           <div className="grid sm:grid-cols-2 gap-3 mb-8">

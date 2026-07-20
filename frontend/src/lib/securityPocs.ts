@@ -63,27 +63,32 @@ export const POC_CATEGORIES: Array<{
   {
     id: "container",
     label: "Container",
-    blurb: "Stories that run inside the chat-rag workload.",
+    blurb:
+      "External visitor hits public storefront paths (/api/legacy/download, /api/catalog/preview) — foothold then post-exploit inside chat-rag.",
   },
   {
     id: "serverless",
     label: "Frontend & serverless",
-    blurb: "Stories on the storefront and order-webhook — separate hosts from container.",
+    blurb:
+      "External visitor traffic to the public storefront and /api/checkout (order-webhook) — no internal function URLs.",
   },
   {
     id: "cloud-xdr",
     label: "Identity",
-    blurb: "Steal workload credentials and abuse cloud identity to reach data.",
+    blurb:
+      "Starts as public catalog/legacy HTTP, then post-RCE steals workload identity and reaches GCS.",
   },
   {
     id: "ai",
     label: "AI & Maya",
-    blurb: "OWASP LLM Top 10 style attacks against the shop assistant and RAG store.",
+    blurb:
+      "OWASP LLM Top 10 as a visitor on /api/chat, /api/reindex, /api/rag/* — same APIs the storefront exposes.",
   },
   {
     id: "api",
     label: "API Top 10",
-    blurb: "OWASP API Security Top 10 as an external visitor against public storefront APIs — no internal shortcuts.",
+    blurb:
+      "OWASP API Security Top 10 as an external visitor against public storefront APIs — no internal shortcuts.",
   },
 ];
 
@@ -432,7 +437,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
       {
         method: "POST",
         path: "/api/auth/login",
-        body: { email: "jordan.lee@example.com", password: "jordanwaves" },
+        body: DEMO_LOGIN_JORDAN,
         label: "login-jordan",
       },
       {
@@ -918,13 +923,13 @@ export const POC_STORIES: PocStory[] = [
     targetResource: "chat-rag + Vertex",
     title: "Free surfboard via support chat",
     blurb:
-      "Jordan signs in, discovers Sam's paid longboard through Maya's order search, then redirects it to his saved address — UI auth was fine; the AI agent wasn't.",
+      "Jordan signs in on the public site, asks Maya about shipping, and redirects Sam's paid longboard — same /api/auth/login + /api/chat a shopper uses.",
     underTheHood:
-      "search_orders (cross-tenant scan) → get_saved_shipping_address → update_shipping_address (no ownership check) on Vertex Gemini.",
+      "Browser login → /api/chat (search_orders cross-tenant) → update_shipping_address with no ownership check on Vertex Gemini.",
     lookFor:
-      "Vertex generate_content · order tool calls · LLM02 disclosure · LLM06 excessive agency · MITRE AML.T0051",
+      "Public storefront chat · Vertex generate_content · order tools · LLM02 / LLM06 · AML.T0051",
     stepGapSeconds: 10,
-    pocIds: ["path-traversal", "ai-order-hijack", "metadata-creds", "sa-impersonation"],
+    pocIds: ["ai-order-hijack"],
     continueIn: {
       tab: "cloud-xdr",
       storyId: "identity-to-data",
@@ -939,9 +944,9 @@ export const POC_STORIES: PocStory[] = [
     targetResource: "chat-rag",
     title: "Post-exploit toolkit on chat-rag",
     blurb:
-      "After a path-traversal / RCE foothold, runs shell, downloaders, secret reads, a miner sim, and package probing on the chat service.",
+      "After a public path-traversal / Create-A-Board preview foothold, runs shell, downloaders, secret reads, a miner sim, and package probing on chat-rag.",
     underTheHood:
-      "Traversal → Pillow RCE → shell pipe → curl|sh → renamed downloader → sensitive cat → xmrig sim → pip → optional one-shot probe.",
+      "Visitor GET /api/legacy/download → POST /api/catalog/preview (Pillow) → shell pipe → curl|sh → renamed downloader → sensitive cat → xmrig sim → pip.",
     lookFor: "Process, shell redirects, renamed binaries, sensitive files, mining DNS, and pip on chat-rag",
     stepGapSeconds: 8,
     pocIds: [
@@ -969,9 +974,9 @@ export const POC_STORIES: PocStory[] = [
     targetResource: "frontend + order-webhook",
     title: "Frontend RCE → serverless checkout",
     blurb:
-      "Fires a real CVE-2025-55182 RSC Flight exploit against the storefront, then sends a poisoned order webhook (shell/miner ride the YAML chain).",
+      "Visitor fires a real CVE-2025-55182 RSC Flight exploit against the public storefront, then POSTs a poisoned /api/checkout (YAML chain on order-webhook).",
     underTheHood:
-      "Unauthenticated Next-Action Flight RCE in frontend Node, then PyYAML deserialization on the real /checkout webhook.",
+      "Unauthenticated Next-Action Flight to / → PyYAML deserialization via the same /api/checkout the cart uses.",
     lookFor: "Process on frontend · unsafe YAML on order-webhook · follow-on crypto / identity noise",
     stepGapSeconds: 8,
     pocIds: ["react2shell", "order-yaml-checkout"],
@@ -983,9 +988,9 @@ export const POC_STORIES: PocStory[] = [
     targetResource: "chat-rag + GCP APIs",
     title: "Steal workload identity → reach GCS",
     blurb:
-      "Pulls metadata tokens and SA keys, impersonates stronger identities, then lists and reads GCS.",
+      "Visitor foothold via public catalog/legacy paths, then steals metadata tokens and SA keys, impersonates stronger identities, and lists/reads GCS.",
     underTheHood:
-      "Metadata token → SA key theft → impersonation → VM actAs path → IAM abuse → GCS list/get.",
+      "Public /api/catalog/preview RCE → metadata token → SA key theft → impersonation → VM actAs → IAM abuse → GCS list/get.",
     lookFor: "Cloud Audit Logs · metadata/creds · SA impersonation · GCS APIs",
     stepGapSeconds: 8,
     pocIds: [
@@ -1004,9 +1009,9 @@ export const POC_STORIES: PocStory[] = [
     targetResource: "chat-rag",
     title: "OWASP LLM Top 10 on the shop AI",
     blurb:
-      "Eight LLM risks on chat-rag: prompt injection, sensitive disclosure, supply chain, data poisoning, unsafe output, system-prompt leak, vector abuse, and unbounded token spend.",
+      "LLM risks as a public-site visitor: prompt injection, sensitive disclosure, supply chain, data poisoning, unsafe output, system-prompt leak, vector abuse, and unbounded token spend — all via storefront /api/*.",
     underTheHood:
-      "LLM01 injection → reindex → LLM02 SID → LLM03 packages → LLM04 poison → LLM05 XSS HTML → LLM07 prompt leak → LLM08 embeddings → LLM10 burst chat.",
+      "Visitor /api/chat injection → /api/reindex → chat SID → /api/ai/packages → /api/rag/poison → XSS/leak/embedding/burst chat.",
     lookFor:
       "AI egress · unauth RAG write/read · secret/PII in context · package CVEs · burst token use",
     stepGapSeconds: 8,

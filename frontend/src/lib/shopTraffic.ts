@@ -1,6 +1,7 @@
 /** Browser-visible shop traffic for /security PoCs (TraditionalJay-style).
  * Every step is what an external visitor would send to the public storefront —
  * same-origin /api/* and HTML routes, or absolute public URLs (e.g. GCS).
+ * Lab harness paths (/api/security/demo/*) are rejected.
  */
 
 import { setBrowserSession, type ShopUser } from "@/lib/userSession";
@@ -31,11 +32,21 @@ export type ShopTrafficResult = {
   data: unknown;
 };
 
+function assertExternalVisitorPath(path: string): void {
+  const lower = path.toLowerCase();
+  if (lower.includes("/api/security/demo") || lower.includes("/demo/exploit")) {
+    throw new Error(
+      `Refusing lab harness path "${path}" — attacks must use public storefront URLs only`
+    );
+  }
+}
+
 export async function fireShopTraffic(
   steps: ShopTrafficStep[]
 ): Promise<ShopTrafficResult[]> {
   const out: ShopTrafficResult[] = [];
   for (const step of steps) {
+    assertExternalVisitorPath(step.path);
     if (step.setSession) {
       setBrowserSession(step.setSession);
     }

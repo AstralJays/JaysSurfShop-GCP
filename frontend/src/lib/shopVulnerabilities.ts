@@ -309,7 +309,7 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     manualTry: "Run “Post-exploit toolkit on chat-rag” story step 2.",
     lookFor: "SCA Critical · process execution in chat-rag",
     pocIds: ["pillow-rce", "path-traversal"],
-    storyIds: ["story-1-cve-probing", "ai-support-hijack"],
+    storyIds: ["story-1-cve-probing"],
   },
   {
     id: "platform-path-traversal",
@@ -323,7 +323,7 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     manualTry: "Run path-traversal PoC or GET /legacy/download?file=../confidential/api-credentials.txt",
     lookFor: "Path traversal · sensitive file read · cat process",
     pocIds: ["path-traversal"],
-    storyIds: ["story-1-cve-probing", "ai-support-hijack"],
+    storyIds: ["story-1-cve-probing"],
   },
   {
     id: "platform-metadata-creds",
@@ -337,7 +337,7 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     manualTry: "Run metadata-creds PoC after container foothold (GCE metadata).",
     lookFor: "GCP metadata token · iamcredentials · Cloud Audit Logs",
     pocIds: ["metadata-creds"],
-    storyIds: ["identity-to-data", "ai-support-hijack"],
+    storyIds: ["identity-to-data"],
   },
   {
     id: "platform-iam-s3",
@@ -380,35 +380,35 @@ export const FEATURED_STORY_GROUPS: Array<{
     label: "AI stories",
     headline: "Maya & the order hijack",
     description:
-      "Business-logic vulns in the support agent — cross-customer disclosure and shipping redirects via Vertex tools.",
+      "Visitor signs in and chats with Maya on the public site — cross-customer disclosure and shipping redirects via Vertex tools.",
   },
   {
     id: "api",
     label: "API stories",
     headline: "OWASP API Top 10",
     description:
-      "BOLA, broken auth, excess data, unbounded APIs, misconfig, and unsafe YAML — real /api/* storefront paths.",
+      "External visitor on public /api/* — BOLA, broken auth, excess data, unbounded APIs, misconfig, and unsafe YAML.",
   },
   {
     id: "container",
     label: "Container CVE stories",
     headline: "Path traversal → Pillow RCE → post-exploit",
     description:
-      "Classic container foothold on chat-rag, then shell/miner/pip activity for runtime detection.",
+      "Public /api/legacy/download and /api/catalog/preview footholds, then shell/miner/pip for runtime detection.",
   },
   {
     id: "serverless",
     label: "Cloud Functions & storefront CVEs",
     headline: "React2Shell → poisoned checkout",
     description:
-      "Frontend RCE chain into serverless order-webhook YAML deserialization.",
+      "Public Flight RCE on / then visitor /api/checkout YAML into the order-webhook.",
   },
   {
     id: "cloud-xdr",
     label: "Cloud XDR",
     headline: "Metadata creds → IAM → GCS",
     description:
-      "Steal workload identity and abuse cloud APIs — correlates in Cloud Audit Logs and Cloud XDR.",
+      "Starts from public catalog/legacy HTTP, then steals workload identity and abuses cloud APIs.",
   },
 ];
 

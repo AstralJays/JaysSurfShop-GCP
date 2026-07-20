@@ -37,7 +37,9 @@ resource "google_cloud_run_v2_service" "order_webhook" {
     service_account       = google_service_account.order_webhook.email
 
     scaling {
-      min_instance_count = 0
+      # Keep one warm instance so the Upwind tracer stays attached (scale-to-zero
+      # + CPU throttle drops Process events for YAML checkout / carrier labs).
+      min_instance_count = 1
       max_instance_count = 3
     }
 
@@ -47,6 +49,15 @@ resource "google_cloud_run_v2_service" "order_webhook" {
 
       ports {
         container_port = 8080
+      }
+
+      # Tracer needs CPU allocated (ptrace); idle throttle breaks serverless demos.
+      resources {
+        cpu_idle = false
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
       }
 
       env {

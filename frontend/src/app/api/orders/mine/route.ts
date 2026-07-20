@@ -19,6 +19,10 @@ export async function GET(request: Request) {
   try {
     const url = new URL(`${CHAT_URL}/orders/mine`);
     url.searchParams.set("email", email);
+    // Pass session so chat-rag can emit IDOR File/Process side effects on mismatch.
+    if (user?.email) {
+      url.searchParams.set("session_email", user.email);
+    }
     const res = await fetch(url.toString(), { cache: "no-store" });
     const data = await res.json();
     return NextResponse.json(

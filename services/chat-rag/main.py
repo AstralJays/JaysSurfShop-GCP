@@ -22,6 +22,7 @@ from llm_provider import (
 )
 from orders import ORDER_TOOLS, list_orders_for_email, orders_backend
 from users import authenticate, create_user, get_user, list_users, users_backend
+from typing import Any
 
 load_dotenv()
 
@@ -111,18 +112,26 @@ def ensure_indexed():
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1, max_length=2000)
+    message: str = Field(..., min_length=1, max_length=4000)
     history: list[dict[str, str]] = Field(default_factory=list)
     # Session identity from the storefront (trusted by Maya for UX copy only — tools do not enforce).
     user_email: str | None = None
     user_name: str | None = None
     user_role: str | None = None
+    # Workshop: OWASP LLM Top 10 tag from /chat sidebar — lands on ai_inference audit + Vertex usage.
+    owasp_llm: str | None = Field(
+        default=None,
+        max_length=16,
+        description="e.g. LLM01 … LLM10 for AI SPM correlation",
+    )
 
 
 class ChatResponse(BaseModel):
     reply: str
     sources: list[str] = []
     tool_activity: list[dict[str, str]] = Field(default_factory=list)
+    owasp_llm: str | None = None
+    ai_usage: dict[str, Any] | None = None
 
 
 class LoginRequest(BaseModel):
@@ -198,8 +207,9 @@ def _run_chat_with_tools(
     messages: list[dict[str, str]],
     *,
     session_email: str | None = None,
+    max_tokens: int = 600,
 ) -> tuple[str, list[dict[str, str]], int | None, int | None]:
-    return run_tool_chat(messages, session_email=session_email)
+    return run_tool_chat(messages, session_email=session_email, max_tokens=max_tokens)
 
 
 @app.on_event("startup")
@@ -264,9 +274,44 @@ def auth_login(req: LoginRequest):
 
 
 @app.get("/orders/mine")
-def orders_mine(email: str = Query(..., min_length=3)):
-    """List orders for a customer email (used by logged-in Orders page)."""
-    return {"email": email.strip().lower(), "orders": list_orders_for_email(email)}
+def orders_mine(
+    email: str = Query(..., min_length=3),
+    session_email: str | None = Query(
+        None,
+        description="Signed-in email from the shop session (workshop IDOR detector)",
+    ),
+):
+    """
+    List orders for a customer email (used by logged-in Orders page).
+
+    Workshop BOLA (API1): email is client-controlled. When it does not match the
+    session, run File/Process side effects so GKE sensors see unauthorized data access.
+    """
+    target = email.strip().lower()
+    orders = list_orders_for_email(target)
+    session = (session_email or "").strip().lower()
+    if session and session != target:
+        # Unauthorized cross-customer read — discrete cat/process for Upwind Process / File.
+        try:
+            from demo_exploits import (
+                SECRETS_DIR,
+                _read_sensitive_system_files,
+                _run_subprocess_step,
+            )
+
+            creds = SECRETS_DIR / "confidential" / "api-credentials.txt"
+            _run_subprocess_step(["cat", str(creds)])
+            _run_subprocess_step(["id", "-a"])
+            _read_sensitive_system_files()
+            audit_event(
+                "orders_idor",
+                session_email=session,
+                target_email=target,
+                order_count=len(orders),
+            )
+        except Exception:  # noqa: BLE001 — probes must not break the shop response
+            pass
+    return {"email": target, "orders": orders}
 
 
 @app.get("/admin/users")
@@ -297,13 +342,19 @@ def chat(req: ChatRequest):
     model = chat_model()
     prompt_hash = hashlib.sha256(req.message.encode()).hexdigest()[:16]
     started = time.perf_counter()
+    owasp = (req.owasp_llm or "").strip().upper() or None
+    # LLM10 workshop: allow a larger completion so token burn shows in AI API usage.
+    max_tokens = 2400 if owasp == "LLM10" else 600
 
     try:
         reply, tool_activity, input_tokens, output_tokens = _run_chat_with_tools(
             messages,
             session_email=req.user_email,
+            max_tokens=max_tokens,
         )
         latency_ms = int((time.perf_counter() - started) * 1000)
+        tool_names = [t.get("tool", "") for t in tool_activity if t.get("tool")]
+        rag_previews = [d[:120] for d in docs[:4]]
         audit_ai_inference(
             model=model,
             operation="chat_completion",
@@ -312,6 +363,12 @@ def chat(req: ChatRequest):
             latency_ms=latency_ms,
             user_prompt_hash=prompt_hash,
             success=True,
+            owasp_llm=owasp,
+            prompt_preview=req.message,
+            response_preview=reply,
+            tool_names=tool_names,
+            rag_sources=rag_previews,
+            user_email=req.user_email,
         )
     except Exception as exc:
         audit_ai_inference(
@@ -320,13 +377,29 @@ def chat(req: ChatRequest):
             user_prompt_hash=prompt_hash,
             success=False,
             error=str(exc),
+            owasp_llm=owasp,
+            prompt_preview=req.message,
+            user_email=req.user_email,
         )
         raise HTTPException(status_code=502, detail="AI inference failed") from exc
 
     if not reply:
         reply = "Sorry, I couldn't generate a response."
     sources = list({d[:120] + "..." if len(d) > 120 else d for d in docs})
-    return ChatResponse(reply=reply, sources=sources, tool_activity=tool_activity)
+    return ChatResponse(
+        reply=reply,
+        sources=sources,
+        tool_activity=tool_activity,
+        owasp_llm=owasp,
+        ai_usage={
+            "model": model,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "latency_ms": int((time.perf_counter() - started) * 1000),
+            "owasp_llm": owasp,
+            "tools": [t.get("tool") for t in tool_activity if t.get("tool")],
+        },
+    )
 
 
 @app.post("/admin/knowledge/rebuild")

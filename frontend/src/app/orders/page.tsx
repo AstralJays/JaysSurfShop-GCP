@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface OrderRow {
   order_id: string;
@@ -11,6 +11,7 @@ interface OrderRow {
   payment_status: string;
   order_status: string;
   shipping_address: string;
+  email?: string;
 }
 
 interface MeUser {
@@ -19,34 +20,64 @@ interface MeUser {
   role: string;
 }
 
-export default function OrdersPage() {
+function OrdersPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<MeUser | null>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [lookupEmail, setLookupEmail] = useState("");
+  const [bola, setBola] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetch("/api/orders/mine")
-      .then(async (res) => {
+  const loadOrders = useCallback(
+    async (emailOverride?: string) => {
+      setLoading(true);
+      setError("");
+      const email = (emailOverride ?? "").trim();
+      const qs = email ? `?email=${encodeURIComponent(email)}` : "";
+      try {
+        const res = await fetch(`/api/orders/mine${qs}`, { credentials: "include" });
         if (res.status === 401) {
           router.replace("/login?next=/orders");
-          return null;
+          return;
         }
         const data = await res.json();
         if (!res.ok) {
           setError(data.detail || "Could not load orders");
-          return null;
+          setOrders([]);
+          return;
         }
         setUser(data.user);
         setOrders(data.orders || []);
-        return data;
-      })
-      .catch(() => setError("Could not load orders"))
-      .finally(() => setLoading(false));
-  }, [router]);
+        setBola(Boolean(data.bola));
+        setLookupEmail(email || data.email || data.user?.email || "");
+      } catch {
+        setError("Could not load orders");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [router]
+  );
 
-  if (loading) {
+  useEffect(() => {
+    const fromQuery = searchParams.get("email")?.trim() || "";
+    if (fromQuery) setLookupEmail(fromQuery);
+    void loadOrders(fromQuery || undefined);
+    // Initial load only — email query + session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, searchParams]);
+
+  function onLookup(e: FormEvent) {
+    e.preventDefault();
+    const next = lookupEmail.trim();
+    const url = next ? `/orders?email=${encodeURIComponent(next)}` : "/orders";
+    router.replace(url);
+    void loadOrders(next || undefined);
+  }
+
+  if (loading && !user && orders.length === 0) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10 text-ocean-600 text-sm">Loading your orders…</div>
     );
@@ -59,6 +90,28 @@ export default function OrdersPage() {
       {user && (
         <p className="text-ocean-600 text-sm mt-2">
           Signed in as <span className="font-medium text-ocean-800">{user.name}</span> ({user.email})
+        </p>
+      )}
+
+      {/* Workshop BOLA surface: email is client-controlled and not bound to the session. */}
+      <form onSubmit={onLookup} className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-end">
+        <label className="block flex-1 text-sm">
+          <span className="text-ocean-700 font-medium">Lookup email</span>
+          <input
+            value={lookupEmail}
+            onChange={(e) => setLookupEmail(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-ocean-200 px-3 py-2 text-sm font-mono"
+            placeholder="customer@example.com"
+            autoComplete="email"
+          />
+        </label>
+        <button type="submit" className="btn-primary text-sm shrink-0" disabled={loading}>
+          {loading ? "Loading…" : "Fetch orders"}
+        </button>
+      </form>
+      {bola && (
+        <p className="mt-2 text-xs text-amber-800">
+          Showing orders for a different email than your signed-in session.
         </p>
       )}
 
@@ -130,5 +183,13 @@ export default function OrdersPage() {
         your address on file.
       </p>
     </div>
+  );
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-2xl px-4 py-10 text-ocean-600 text-sm">Loading your orders…</div>}>
+      <OrdersPageInner />
+    </Suspense>
   );
 }

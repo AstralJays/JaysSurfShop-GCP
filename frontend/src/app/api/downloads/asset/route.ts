@@ -13,8 +13,15 @@ export async function GET(request: Request) {
       `/downloads/asset?name=${encodeURIComponent(name)}`,
       { method: "GET" }
     );
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    const text = await res.text();
+    try {
+      return NextResponse.json(JSON.parse(text), { status: res.status });
+    } catch {
+      return NextResponse.json(
+        { detail: text || "Download failed", status: res.status },
+        { status: res.status >= 400 ? res.status : 502 }
+      );
+    }
   } catch {
     return NextResponse.json({ detail: "Download service unavailable" }, { status: 503 });
   }

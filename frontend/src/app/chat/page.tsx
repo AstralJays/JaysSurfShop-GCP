@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CREW_STARTERS } from "@/lib/boardStats";
 import { ORDER_CHAT_STARTERS, shippingChangeDraft } from "@/lib/demoOrders";
+import { OWASP_LLM_CHAT_PROMPTS } from "@/lib/owaspLlmPrompts";
 import type { ChatMessage } from "@/types";
 
 interface MeUser {
@@ -23,7 +24,10 @@ function ChatContent() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activePromptId, setActivePromptId] = useState<string | null>(null);
+  const [activeOwaspRef, setActiveOwaspRef] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const seededRef = useRef(false);
 
   useEffect(() => {
@@ -69,14 +73,24 @@ function ChatContent() {
     ? ORDER_CHAT_STARTERS
     : [...ORDER_CHAT_STARTERS.slice(0, 1), ...CREW_STARTERS.slice(0, 2)];
 
-  async function sendMessage(text: string) {
+  function loadPrompt(id: string, ref: string, prompt: string) {
+    setActivePromptId(id);
+    setActiveOwaspRef(ref);
+    setInput(prompt);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  async function sendMessage(text: string, owaspRef?: string | null) {
     if (!text.trim() || loading) return;
 
     const userMsg: ChatMessage = { role: "user", content: text.trim() };
     const history = messages.filter((m) => m.role !== "assistant" || messages.indexOf(m) > 0);
+    const tag = owaspRef ?? activeOwaspRef;
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    setActivePromptId(null);
+    setActiveOwaspRef(null);
     setLoading(true);
 
     try {
@@ -86,6 +100,7 @@ function ChatContent() {
         body: JSON.stringify({
           message: text.trim(),
           history: history.map(({ role, content }) => ({ role, content })),
+          ...(tag ? { owasp_llm: tag } : {}),
         }),
       });
 
@@ -104,7 +119,7 @@ function ChatContent() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-ocean-500">Shop support</p>
@@ -129,8 +144,8 @@ function ChatContent() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-[120px_1fr] gap-5">
-        <div className="hidden sm:block">
+      <div className="grid gap-5 lg:grid-cols-[100px_minmax(0,1fr)_260px]">
+        <div className="hidden lg:block">
           <div className="card p-3 text-center sticky top-24">
             <div className="relative w-16 h-16 mx-auto rounded-full overflow-hidden ring-2 ring-ocean-200">
               <Image src="/logo.png" alt="Maya" fill className="object-cover" />
@@ -197,6 +212,7 @@ function ChatContent() {
             }}
           >
             <input
+              ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -213,6 +229,69 @@ function ChatContent() {
             </button>
           </form>
         </div>
+
+        <aside className="card p-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
+            OWASP LLM Top 10
+          </p>
+          <p className="mt-1 text-[11px] text-ocean-600 leading-snug">
+            Each runnable item tags the Vertex/OpenAI call with <code className="font-mono">owasp_llm</code> so
+            AI API request·response capture maps to that risk — not only DAN / shipping hijacks.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {OWASP_LLM_CHAT_PROMPTS.map((item) => (
+              <li key={item.id}>
+                {item.chatRunnable && item.prompt ? (
+                  <button
+                    type="button"
+                    onClick={() => loadPrompt(item.id, item.ref, item.prompt!)}
+                    className={`w-full rounded-lg border px-2.5 py-2 text-left transition ${
+                      activePromptId === item.id
+                        ? "border-ocean-400 bg-ocean-50"
+                        : "border-ocean-100 bg-white hover:border-ocean-200 hover:bg-ocean-50/60"
+                    }`}
+                  >
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="font-mono text-[10px] font-semibold text-teal-700">
+                        {item.ref}
+                      </span>
+                      <span className="text-xs font-medium text-ocean-900">{item.title}</span>
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-ocean-500 leading-snug">
+                      {item.note}
+                    </span>
+                    <span className="mt-1 block text-[10px] text-ocean-700 leading-snug border-t border-ocean-100 pt-1">
+                      Capture: {item.aiCapture}
+                    </span>
+                  </button>
+                ) : (
+                  <div className="w-full rounded-lg border border-dashed border-ocean-200 bg-ocean-50/40 px-2.5 py-2 opacity-80">
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="font-mono text-[10px] font-semibold text-ocean-400">
+                        {item.ref}
+                      </span>
+                      <span className="text-xs font-medium text-ocean-600">{item.title}</span>
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-ocean-500 leading-snug">
+                      {item.note}
+                    </span>
+                    <span className="mt-1 block text-[10px] text-ocean-600 leading-snug border-t border-ocean-100/80 pt-1">
+                      Capture: {item.aiCapture}
+                    </span>
+                  </div>
+                )}
+                {item.href && (
+                  <Link
+                    href={item.href}
+                    className="mt-1 inline-block text-[10px] font-medium text-teal-700 underline"
+                  >
+                    Open {item.href} →
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </aside>
       </div>
     </div>
   );
@@ -220,7 +299,7 @@ function ChatContent() {
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-4xl px-4 py-10 text-ocean-600">Loading chat…</div>}>
+    <Suspense fallback={<div className="mx-auto max-w-6xl px-4 py-10 text-ocean-600">Loading chat…</div>}>
       <ChatContent />
     </Suspense>
   );

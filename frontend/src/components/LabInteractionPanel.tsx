@@ -142,6 +142,7 @@ function OrdersBolaLab() {
             const res = await fetch("/api/auth/login", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
+              credentials: "include",
               body: JSON.stringify(DEMO_LOGIN_JORDAN),
             });
             return { status: res.status, body: await res.json() };
@@ -164,13 +165,22 @@ function OrdersBolaLab() {
         className="btn-primary text-sm"
         onClick={() =>
           run(async () => {
-            const res = await fetch(`/api/orders/mine?email=${encodeURIComponent(email)}`);
+            const res = await fetch(`/api/orders/mine?email=${encodeURIComponent(email)}`, {
+              credentials: "include",
+            });
             return { status: res.status, body: await res.json() };
           })
         }
       >
         2. Fetch orders for email
       </button>
+      <p className="text-xs text-ocean-500">
+        Same sink as{" "}
+        <Link href={`/orders?email=${encodeURIComponent(email)}`} className="underline">
+          /orders
+        </Link>
+        .
+      </p>
       {error && <p className="text-sm text-coral-700">{error}</p>}
       <Result data={result} />
     </div>
@@ -349,6 +359,9 @@ function CheckoutYamlLab() {
     <div className="space-y-3">
       <p className="text-xs text-ocean-600">
         Executes on <strong>Cloud Run</strong> (<code>order-webhook</code>), not GKE nodes.
+        Cart checkout alone is benign — this button sends the poisoned{" "}
+        <code>fulfillmentManifest</code>. In Upwind filter <strong>Cloud Run / order-webhook</strong>,
+        not chat-rag. Expect Process (id, sh, cat), not an SCA “PyYAML” row from the click.
       </p>
       <p className="text-xs font-mono text-ocean-600 break-all">
         fulfillmentManifest: {YAML_CHECKOUT_BODY.fulfillmentManifest}

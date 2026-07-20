@@ -52,7 +52,17 @@ def audit_ai_inference(
     user_prompt_hash: str | None = None,
     success: bool = True,
     error: str | None = None,
+    owasp_llm: str | None = None,
+    prompt_preview: str | None = None,
+    response_preview: str | None = None,
+    tool_names: list[str] | None = None,
+    rag_sources: list[str] | None = None,
+    user_email: str | None = None,
 ) -> None:
+    """
+    Workshop AI SPM signal — mirrors what Upwind GenAI / API usage captures:
+    tagged OWASP LLM ref, prompt/response excerpts, tools, token counts.
+    """
     audit_event(
         "ai_inference",
         model=model,
@@ -63,5 +73,11 @@ def audit_ai_inference(
         user_prompt_hash=user_prompt_hash,
         success=success,
         error=error,
+        owasp_llm=owasp_llm,
+        prompt_preview=(prompt_preview or "")[:800] or None,
+        response_preview=(response_preview or "")[:800] or None,
+        tool_names=tool_names or [],
+        rag_sources=rag_sources or [],
+        user_email=user_email,
         ai_provider=os.getenv("LLM_PROVIDER", "openai").strip().lower() or "openai",
     )

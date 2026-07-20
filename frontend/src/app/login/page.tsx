@@ -29,7 +29,11 @@ function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.detail || "Sign-in failed");
+        const detail =
+          typeof data.detail === "string"
+            ? data.detail
+            : data.detail?.detail || "Sign-in failed";
+        setError(detail);
         return;
       }
       const dest =

@@ -13,11 +13,21 @@ export async function POST(request: Request) {
     });
     const data = await res.json();
     if (!res.ok) {
-      return NextResponse.json(data, { status: res.status });
+      const detail =
+        typeof data.detail === "string"
+          ? data.detail
+          : data.detail?.detail || "Sign-in failed";
+      return NextResponse.json(
+        { detail, auth_debug: data.detail?.auth_debug || data.auth_debug },
+        { status: res.status }
+      );
     }
 
     const user = data.user as ShopUser;
-    const response = NextResponse.json({ user });
+    const response = NextResponse.json({
+      user,
+      auth_debug: data.auth_debug,
+    });
     response.cookies.set(USER_COOKIE, encodeSession(user), {
       // Workshop: intentionally not httpOnly so visitors can forge/tamper the cookie.
       httpOnly: false,

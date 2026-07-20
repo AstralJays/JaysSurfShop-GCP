@@ -15,6 +15,8 @@ export type LabInteraction =
   | "orders-bola"
   | "login"
   | "session-forge"
+  | "sqli-login"
+  | "ssrf-fetch"
   | "maya-chat"
   | "community-tip"
   | "knowledge-rebuild"
@@ -138,6 +140,43 @@ export const OWASP_LABS: OwaspLab[] = [
   },
 
   // —— OWASP App Top 10 ——
+  {
+    slug: "a03-sqli-login",
+    category: "owasp-app",
+    ref: "A03:2021",
+    title: "SQL injection on login",
+    severity: "Critical",
+    summary:
+      "Shop accounts live in SQLite. /api/auth/login builds the WHERE clause with string concat — classic DVWA login SQLi.",
+    objective: "Bypass auth and dump emails/passwords from the users table.",
+    steps: [
+      "Try a normal login (jordan.lee@example.com / jordanwaves) to see a clean query.",
+      "Email: ' OR 1=1--  (any password) → login bypass, first matching row.",
+      "Email: ' UNION SELECT email,name,role,demo_password,saved_shipping_address FROM users-- → dump accounts.",
+      "Expand auth_debug in the response to see the SQL and rows.",
+    ],
+    lookFor: "SQLi · auth bypass · credential dump · sqlite users.db",
+    interaction: "sqli-login",
+    shopPath: "/login",
+  },
+  {
+    slug: "a10-ssrf",
+    category: "owasp-app",
+    ref: "A10:2021",
+    title: "SSRF via media import",
+    severity: "High",
+    summary:
+      "Deck-art / care-sheet import fetches any URL the shopper provides — no allowlist.",
+    objective: "Hit GCP metadata or an internal URL from chat-rag.",
+    steps: [
+      "Fetch a benign URL first (e.g. https://example.com).",
+      "Then try http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email with Metadata-Flavor via a redirector, or http://169.254.169.254/…",
+      "On GKE, link-local metadata often needs the Metadata-Flavor header — use an open redirect/webhook that adds it, or probe internal http://chat-rag:8001/health.",
+    ],
+    lookFor: "SSRF · metadata · internal service reachability from chat-rag",
+    interaction: "ssrf-fetch",
+    shopPath: "/guides",
+  },
   {
     slug: "a01-broken-access",
     category: "owasp-app",

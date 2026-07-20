@@ -251,10 +251,16 @@ def health():
 
 @app.post("/auth/login")
 def auth_login(req: LoginRequest):
-    user = authenticate(req.email, req.password)
+    user, debug = authenticate(req.email, req.password)
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    return {"user": user}
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "detail": "Invalid email or password",
+                "auth_debug": debug,
+            },
+        )
+    return {"user": user, "auth_debug": debug}
 
 
 @app.get("/orders/mine")
@@ -364,3 +370,55 @@ def community_tips(payload: dict | None = None):
         metadatas=[{"source": "community-tips", "chunk": 0}],
     )
     return {"ok": True, "accepted": True, "tip_preview": tip[:160]}
+
+
+class MediaFetchRequest(BaseModel):
+    url: str = Field(..., min_length=3, max_length=2000)
+
+
+@app.post("/media/fetch")
+def media_fetch(req: MediaFetchRequest):
+    """
+    Import remote deck-art / care-sheet URLs.
+    No allowlist — classic SSRF (metadata, link-local, internal services).
+    """
+    import urllib.error
+    import urllib.request
+
+    url = req.url.strip()
+    audit_event("media_fetch", url=url[:200])
+    try:
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "JaysSurfShop-media-fetch/1.0"},
+            method="GET",
+        )
+        with urllib.request.urlopen(request, timeout=8) as resp:
+            raw = resp.read(4000)
+            status = getattr(resp, "status", 200)
+            content_type = resp.headers.get("Content-Type", "")
+    except urllib.error.HTTPError as exc:
+        return {
+            "ok": False,
+            "url": url,
+            "status": exc.code,
+            "body_preview": (exc.read(800) or b"").decode("utf-8", errors="replace"),
+            "ssrf": True,
+        }
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    try:
+        preview = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        preview = raw[:200].hex()
+
+    return {
+        "ok": True,
+        "url": url,
+        "status": status,
+        "content_type": content_type,
+        "bytes": len(raw),
+        "body_preview": preview[:1500],
+        "ssrf": True,
+    }

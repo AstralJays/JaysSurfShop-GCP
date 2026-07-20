@@ -250,7 +250,7 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     tag: "LLM04",
     whatsWrong: "POST /reindex rebuilds vector store with no auth; poison upserts are open.",
     shopperExperience: "Maya answers from poisoned KB after lab runs reindex/poison PoCs.",
-    manualTry: "Run OWASP LLM story or POST /api/reindex (shop-shaped), then chat.",
+    manualTry: "POST /api/admin/knowledge/rebuild then chat, or submit a tip via /api/community/tips.",
     lookFor: "Unauth admin on AI data plane · vector poisoning",
     pocIds: ["unauth-reindex", "ai-poison"],
     storyIds: ["ai-data-plane"],
@@ -394,7 +394,7 @@ export const FEATURED_STORY_GROUPS: Array<{
     label: "Container CVE stories",
     headline: "Path traversal → Pillow RCE → post-exploit",
     description:
-      "Public /api/legacy/download and /api/catalog/preview footholds, then shell/miner/pip for runtime detection.",
+      "Public /api/downloads/asset and /api/board/preview footholds, then shell/miner/pip for runtime detection.",
   },
   {
     id: "serverless",

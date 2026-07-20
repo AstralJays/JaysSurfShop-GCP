@@ -366,7 +366,5 @@ def create_owasp_router(
             ),
         }
 
-    # Shop-shaped only — do not mount /demo/exploit AI twins (PoCs use /chat + /rag/poison).
-    shop = APIRouter(tags=["shop-ai"])
-    shop.add_api_route("/rag/poison", ai_poison, methods=["POST"])
-    return shop
+    # LLM attacks are exercised through real /chat (and /community/tips in main.py) — no lab twins.
+    return APIRouter(tags=["shop-ai"])

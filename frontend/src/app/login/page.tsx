@@ -1,16 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-
-interface DemoAccount {
-  email: string;
-  name: string;
-  role: string;
-  demo_password?: string;
-}
+import { WORKSHOP_ACCOUNTS } from "@/lib/shopTraffic";
 
 function LoginForm() {
   const router = useRouter();
@@ -21,14 +15,7 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [accounts, setAccounts] = useState<DemoAccount[]>([]);
-
-  useEffect(() => {
-    fetch("/api/auth/demo-accounts")
-      .then((r) => r.json())
-      .then((data) => setAccounts(data.accounts || []))
-      .catch(() => setAccounts([]));
-  }, []);
+  const accounts = WORKSHOP_ACCOUNTS;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,7 +47,7 @@ function LoginForm() {
     }
   }
 
-  function fillAccount(account: DemoAccount) {
+  function fillAccount(account: (typeof WORKSHOP_ACCOUNTS)[number]) {
     setEmail(account.email);
     setPassword(account.demo_password || "");
   }

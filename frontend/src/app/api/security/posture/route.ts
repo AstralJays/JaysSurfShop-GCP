@@ -24,23 +24,18 @@ const BASE = {
       { path: "/admin", note: "Staff ops — middleware bypassable (CVE-2025-29927)" },
       { path: "/api/chat", note: "Maya → Vertex Gemini + order tools" },
       { path: "/api/auth/login", note: "Customer login API" },
-      { path: "/api/auth/demo-accounts", note: "Login page demo passwords (intentional)" },
-      { path: "/api/board", note: "Unauthenticated → image gen + designs gallery" },
+      { path: "/api/board", note: "Create-A-Board generate + designs gallery" },
+      { path: "/api/board/preview", note: "Create-A-Board deck preview (Pillow sink)" },
       { path: "/api/orders/mine", note: "Orders — BOLA via ?email= query" },
-      { path: "/api/checkout", note: "Cart checkout → order webhook (YAML when poisoned)" },
+      { path: "/api/checkout", note: "Cart checkout → order webhook" },
+      { path: "/api/downloads/asset", note: "Document download (path traversal)" },
+      { path: "/api/community/tips", note: "Community tips → Maya knowledge" },
+      { path: "/api/admin/knowledge/rebuild", note: "Staff knowledge rebuild (weak auth)" },
+      { path: "/api/chat", note: "Maya support chat" },
       {
         path: "https://storage.googleapis.com/…/exports/customer-export.json",
         note: "Public GCS customer export (allUsers)",
       },
-      { path: "/api/legacy/download", note: "Legacy file download (path traversal PoC)" },
-      { path: "/api/reindex", note: "Unauth RAG rebuild (PoC)" },
-      { path: "/api/rag/poison", note: "Unauth RAG poison write (PoC)" },
-      { path: "/api/ai/packages", note: "AI package / supply-chain probe (PoC)" },
-      { path: "/api/security/posture", note: "Posture metadata" },
-      { path: "/api/catalog/preview", note: "Create-A-Board preview — Pillow RCE foothold" },
-      { path: "/api/legacy/download", note: "Path traversal sink" },
-      { path: "/api/checkout", note: "Checkout → order-webhook YAML chain" },
-      { path: "/api/chat", note: "Maya support chat" },
     ],
     private: [
       { path: "/admin", note: "Staff ops — middleware cookie gate (CVE-2025-29927 bypassable)" },
@@ -291,7 +286,7 @@ function buildFindings(
 export async function GET() {
   let demo: DemoStatus = {};
   try {
-    const res = await proxyChat("/demo/exploit/status");
+    const res = await proxyChat("/health");
     if (res.ok) demo = await res.json();
   } catch {
     /* chat-rag unreachable */

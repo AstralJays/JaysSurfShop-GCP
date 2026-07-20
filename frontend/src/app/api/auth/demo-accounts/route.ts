@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 
-const CHAT_URL = process.env.CHAT_SERVICE_URL || "http://localhost:8001";
-
+/** Removed — workshop accounts are listed on /login (page content), not an API */
 export async function GET() {
-  try {
-    const res = await fetch(`${CHAT_URL}/auth/demo-accounts`, { cache: "no-store" });
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
-  } catch {
-    return NextResponse.json({ accounts: [], detail: "Auth service unavailable" }, { status: 503 });
-  }
+  return NextResponse.json(
+    { detail: "Gone", use: "Open /login — workshop accounts are shown on the page" },
+    { status: 410 }
+  );
 }

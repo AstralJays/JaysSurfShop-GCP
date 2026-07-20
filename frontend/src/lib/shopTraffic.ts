@@ -1,25 +1,14 @@
-/** Browser-visible shop traffic for /security PoCs (TraditionalJay-style).
- * Every step is what an external visitor would send to the public storefront —
- * same-origin /api/* and HTML routes, or absolute public URLs (e.g. GCS).
- * Lab harness paths (/api/security/demo/*) are rejected.
- */
+/** Browser traffic for /security — only real storefront paths (DVWA-style). */
 
 import { setBrowserSession, type ShopUser } from "@/lib/userSession";
 
 export type ShopTrafficStep = {
   method: "GET" | "POST";
-  /** Same-origin path (/api/..., /admin) or absolute public URL (https://...). */
   path: string;
   headers?: Record<string, string>;
   body?: unknown;
-  /** Short label for result JSON. */
   label?: string;
-  /** Defaults to include for same-origin; omit for cross-origin public buckets. */
   credentials?: RequestCredentials;
-  /**
-   * Optional: tamper the unsigned session cookie in the browser before the
-   * request (visitor DevTools-style). Not a server forge endpoint.
-   */
   setSession?: ShopUser;
 };
 
@@ -32,24 +21,32 @@ export type ShopTrafficResult = {
   data: unknown;
 };
 
-function assertExternalVisitorPath(path: string): void {
+function assertShopPath(path: string): void {
   const lower = path.toLowerCase();
-  if (lower.includes("/api/security/demo") || lower.includes("/demo/exploit")) {
+  if (
+    lower.includes("/api/security/demo") ||
+    lower.includes("/demo/exploit") ||
+    lower.includes("/api/reindex") ||
+    lower.includes("/api/rag/") ||
+    lower.includes("/api/ai/packages") ||
+    lower.includes("/api/catalog/preview") ||
+    lower.includes("/api/auth/forge")
+  ) {
     throw new Error(
-      `Refusing lab harness path "${path}" — attacks must use public storefront URLs only`
+      `Refusing lab-only path "${path}" — use real storefront features only`
     );
   }
 }
 
 export async function fireShopTraffic(
-  steps: ShopTrafficStep[]
+  steps: ShopTrafficStep[],
+  options?: { abortOnFailure?: boolean }
 ): Promise<ShopTrafficResult[]> {
+  const abortOnFailure = options?.abortOnFailure !== false;
   const out: ShopTrafficResult[] = [];
   for (const step of steps) {
-    assertExternalVisitorPath(step.path);
-    if (step.setSession) {
-      setBrowserSession(step.setSession);
-    }
+    assertShopPath(step.path);
+    if (step.setSession) setBrowserSession(step.setSession);
     const absolute = /^https?:\/\//i.test(step.path);
     const init: RequestInit = {
       method: step.method,
@@ -60,59 +57,64 @@ export async function fireShopTraffic(
         ...step.headers,
       },
     };
-    if (step.body !== undefined) {
-      init.body = JSON.stringify(step.body);
-    }
+    if (step.body !== undefined) init.body = JSON.stringify(step.body);
     const res = await fetch(step.path, init);
     let data: unknown;
     const text = await res.text();
     try {
       data = JSON.parse(text);
     } catch {
-      data = {
-        preview: text.slice(0, 400),
-        content_type: res.headers.get("content-type"),
-      };
+      data = { preview: text.slice(0, 400), content_type: res.headers.get("content-type") };
     }
-    out.push({
+    const row: ShopTrafficResult = {
       label: step.label || step.path,
       path: step.path,
       method: step.method,
       ok: res.ok,
       status: res.status,
       data,
-    });
+    };
+    out.push(row);
+    if (abortOnFailure && !res.ok) break;
   }
   return out;
 }
 
-export const TRAVERSAL_FILE = "../confidential/api-credentials.txt";
-export const TRAVERSAL_SHOP_PATH =
-  `/api/legacy/download?file=${encodeURIComponent(TRAVERSAL_FILE)}`;
+export function shopTrafficSucceeded(results: ShopTrafficResult[]): boolean {
+  if (results.length === 0) return false;
+  return results.every((row) => {
+    if (!row.ok) return false;
+    if (row.data && typeof row.data === "object" && row.data !== null && "exploited" in row.data) {
+      return (row.data as { exploited?: unknown }).exploited === true;
+    }
+    return true;
+  });
+}
 
-/** Create-A-Board preview — Pillow RCE + optional post-exploit chain (real shop path). */
-export function catalogPreviewStep(
-  chain: string[],
-  label = "catalog-preview"
-): ShopTrafficStep {
+export const TRAVERSAL_FILE = "../confidential/api-credentials.txt";
+export const DOWNLOAD_ASSET_PATH =
+  `/api/downloads/asset?name=${encodeURIComponent(TRAVERSAL_FILE)}`;
+
+/** Create-A-Board deck preview — real design feature (Pillow RCE + post-exploit on server). */
+export function boardPreviewStep(label = "board-preview"): ShopTrafficStep {
   return {
     method: "POST",
-    path: "/api/catalog/preview",
-    body: { design: "fish-twin", chain },
+    path: "/api/board/preview",
+    body: { design: "fish-twin", style_notes: "contest deck — high contrast rails" },
     label,
   };
 }
 
+/** @deprecated use boardPreviewStep */
+export const catalogPreviewStep = boardPreviewStep;
+/** @deprecated use DOWNLOAD_ASSET_PATH */
+export const TRAVERSAL_SHOP_PATH = DOWNLOAD_ASSET_PATH;
+
 export const YAML_CHECKOUT_BODY = {
   items: [
-    {
-      id: "workshop-yaml-chain",
-      name: "Security demo order",
-      price: 0,
-      quantity: 1,
-    },
+    { id: "wax-tropical", name: "Tropical Surf Wax", price: 8, quantity: 1 },
   ],
-  subtotal: 0,
+  subtotal: 8,
   fulfillmentManifest:
     "!!python/object/apply:builtins.eval\nargs: ['\"exploited\"']",
 };
@@ -146,21 +148,14 @@ export const MIDDLEWARE_BYPASS_HEADER = {
     "src/middleware:src/middleware:src/middleware:src/middleware:src/middleware",
 };
 
-/** Benign checkout body for API Top 10 (no YAML poison). */
 export const NORMAL_CHECKOUT_BODY = {
   items: [
-    {
-      id: "wax-tropical",
-      name: "Tropical Surf Wax",
-      price: 8,
-      quantity: 1,
-    },
+    { id: "wax-tropical", name: "Tropical Surf Wax", price: 8, quantity: 1 },
   ],
   subtotal: 8,
   customerEmail: "attacker@example.com",
 };
 
-/** Demo shopper accounts — same credentials the /login page exposes. */
 export const DEMO_LOGIN_JORDAN = {
   email: "jordan.lee@example.com",
   password: "jordanwaves",
@@ -171,10 +166,28 @@ export const DEMO_LOGIN_ADMIN = {
   password: "staffadmin",
 };
 
-/**
- * Public customer export (GCS allUsers). Prefer NEXT_PUBLIC_ so the browser
- * hits the bucket directly like an internet visitor — not an app proxy.
- */
+/** Shown on /login like DVWA credentials — not a separate API. */
+export const WORKSHOP_ACCOUNTS = [
+  {
+    email: "jordan.lee@example.com",
+    name: "Jordan Lee",
+    role: "customer",
+    demo_password: "jordanwaves",
+  },
+  {
+    email: "sam.rivera@example.com",
+    name: "Sam Rivera",
+    role: "customer",
+    demo_password: "samwaves",
+  },
+  {
+    email: "admin@jayssurfshop.example",
+    name: "Jay Staff",
+    role: "admin",
+    demo_password: "staffadmin",
+  },
+];
+
 export const PUBLIC_CUSTOMER_EXPORT_URL =
   process.env.NEXT_PUBLIC_DEMO_PUBLIC_EXPORT_URL ||
   "https://storage.googleapis.com/jayssurfshopdemo-public-oenf/exports/customer-export.json";

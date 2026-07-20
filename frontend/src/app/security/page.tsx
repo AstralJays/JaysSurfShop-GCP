@@ -18,7 +18,7 @@ import {
   type SecurityPoc,
   type StoryKind,
 } from "@/lib/securityPocs";
-import { fireShopTraffic } from "@/lib/shopTraffic";
+import { fireShopTraffic, shopTrafficSucceeded } from "@/lib/shopTraffic";
 import { fireReact2ShellExploit } from "@/lib/react2shellExploit";
 
 interface PostureData {
@@ -265,7 +265,7 @@ export default function SecurityPage() {
     load();
   }, [load]);
 
-  async function runPoC(poc: SecurityPoc, options?: { keepBusy?: boolean }) {
+  async function runPoC(poc: SecurityPoc, options?: { keepBusy?: boolean }): Promise<boolean> {
     setRunning(poc.id);
     try {
       // Real CVE-2025-55182 Flight RCE against public / (no /api/security/demo harness)
@@ -286,7 +286,7 @@ export default function SecurityPage() {
             },
           },
         }));
-        return;
+        return exploit.exploited;
       }
 
       if (!poc.shopTrafficOnly || !poc.shopTraffic?.length) {
@@ -300,25 +300,49 @@ export default function SecurityPage() {
             },
           },
         }));
-        return;
+        return false;
       }
 
       const shopTraffic = await fireShopTraffic(poc.shopTraffic);
+      const ok = shopTrafficSucceeded(shopTraffic);
       const last = shopTraffic[shopTraffic.length - 1] ?? null;
-      const data = {
-        exploited: true,
-        via: "external-visitor-shop-traffic",
-        shop_traffic: shopTraffic,
-        ...(last && typeof last === "object" && last !== null && "data" in last
-          ? { result: (last as { data: unknown }).data }
-          : {}),
-      };
-      setResults((prev) => ({ ...prev, [poc.id]: { ok: true, data } }));
+      const failed = shopTraffic.filter((s) => !s.ok);
+      setResults((prev) => ({
+        ...prev,
+        [poc.id]: {
+          ok,
+          data: {
+            exploited: ok,
+            via: "external-visitor-shop-traffic",
+            shop_traffic: shopTraffic,
+            ...(failed.length
+              ? {
+                  failed_steps: failed.map((s) => ({
+                    label: s.label,
+                    path: s.path,
+                    status: s.status,
+                  })),
+                }
+              : {}),
+            ...(last && typeof last === "object" && last !== null && "data" in last
+              ? { result: (last as { data: unknown }).data }
+              : {}),
+            ...(ok
+              ? {}
+              : {
+                  error:
+                    "One or more storefront requests failed — Upwind will not see a successful exploit. Expand details for HTTP status codes.",
+                }),
+          },
+        },
+      }));
+      return ok;
     } catch (err) {
       setResults((prev) => ({
         ...prev,
         [poc.id]: { ok: false, data: { error: err instanceof Error ? err.message : "Failed" } },
       }));
+      return false;
     } finally {
       if (!options?.keepBusy) setRunning(null);
     }
@@ -340,23 +364,32 @@ export default function SecurityPage() {
       .filter((poc): poc is SecurityPoc => poc != null && !isPocBlocked(poc, posture.findings));
     if (steps.length === 0) return;
 
-    const gapMs = Math.max(0, (story.stepGapSeconds ?? 2) * 1000);
+    // Give runtime sensors time to ingest between real process bursts.
+    const gapMs = Math.max(8000, (story.stepGapSeconds ?? 8) * 1000);
     setChainId(story.id);
+    let completed = 0;
     try {
       for (let i = 0; i < steps.length; i++) {
         const poc = steps[i];
         setChainStatus(`Step ${i + 1}/${steps.length} · ${poc.title}`);
-        await runPoC(poc, { keepBusy: true });
+        const ok = await runPoC(poc, { keepBusy: true });
         setRunning(null);
+        completed = i + 1;
+        if (!ok) {
+          setChainStatus(`Stopped · step ${i + 1} failed (see details)`);
+          break;
+        }
         if (i < steps.length - 1 && gapMs > 0) {
           await sleepWithStatus(gapMs, `Step ${i + 1}/${steps.length} done`);
         }
       }
-      setChainStatus(`Done · ${steps.length}/${steps.length} steps`);
+      if (completed === steps.length) {
+        setChainStatus(`Done · ${steps.length}/${steps.length} steps`);
+      }
     } finally {
       setRunning(null);
       setChainId(null);
-      window.setTimeout(() => setChainStatus(null), 2500);
+      window.setTimeout(() => setChainStatus(null), 4000);
     }
   }
 
@@ -401,10 +434,10 @@ export default function SecurityPage() {
         <p className="mt-3 text-ocean-600 leading-relaxed max-w-2xl">
           A real-looking surf store where every area has something misconfigured. Shoppers buy
           boards, design customs, and chat with Maya. This lab auto-runs attack stories so your
-          tooling sees the same HTTP as a shopper visiting the public site —{" "}
-          <code>/api/chat</code>, <code>/api/checkout</code>, <code>/api/catalog/preview</code>,{" "}
-          <code>/api/legacy/download</code>, <code>/api/auth/login</code> — real edge traffic, not
-          internal service URLs or <code>/api/security/demo/*</code>.
+          tooling sees the same HTTP as a shopper — <code>/api/chat</code>,{" "}
+          <code>/api/checkout</code>, <code>/api/board/preview</code>,{" "}
+          <code>/api/downloads/asset</code>, <code>/api/auth/login</code>. No{" "}
+          <code>/api/security/demo/*</code> attack APIs.
           detections have live signals.
         </p>
         <p className="mt-3 text-sm text-ocean-500">

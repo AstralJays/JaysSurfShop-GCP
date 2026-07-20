@@ -6,7 +6,6 @@ import {
   vulnsForArea,
   type ShopVulnerability,
 } from "@/lib/shopVulnerabilities";
-import type { SecurityPoc } from "@/lib/securityPocs";
 
 const PLANE_COLORS: Record<string, string> = {
   container: "bg-amber-100 text-amber-900",
@@ -18,25 +17,25 @@ const PLANE_COLORS: Record<string, string> = {
 
 function VulnCard({
   vuln,
-  pocById,
-  onRunPoc,
-  running,
+  selected,
+  onSelect,
 }: {
   vuln: ShopVulnerability;
-  pocById: Map<string, SecurityPoc>;
-  onRunPoc: (poc: SecurityPoc) => void;
-  running: string | null;
+  selected: boolean;
+  onSelect: () => void;
 }) {
-  const runnable = (vuln.pocIds ?? [])
-    .map((id) => pocById.get(id))
-    .filter((p): p is SecurityPoc => p != null);
-
   return (
-    <article className="rounded-lg border border-ocean-100 bg-white p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
+    <article
+      className={`rounded-lg border p-4 transition ${
+        selected
+          ? "border-ocean-400 bg-ocean-50/80 ring-1 ring-ocean-200"
+          : "border-ocean-100 bg-white hover:border-ocean-200"
+      }`}
+    >
+      <button type="button" onClick={onSelect} className="w-full text-left">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <h4 className="font-medium text-ocean-900 text-sm">{vuln.title}</h4>
-          <div className="flex flex-wrap gap-1.5 mt-1.5">
+          <div className="flex flex-wrap gap-1.5">
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-ocean-50 text-ocean-600">
               {vuln.tag}
             </span>
@@ -48,29 +47,37 @@ function VulnCard({
             <span className="text-[10px] text-ocean-500">{vuln.severity}</span>
           </div>
         </div>
-      </div>
-      <p className="text-xs text-ocean-700 mt-2 leading-relaxed">{vuln.whatsWrong}</p>
-      <p className="text-xs text-ocean-500 mt-2">
-        <span className="font-medium text-ocean-600">In the shop: </span>
-        {vuln.shopperExperience}
-      </p>
-      <p className="text-xs text-ocean-500 mt-1">
-        <span className="font-medium text-ocean-600">Try it: </span>
-        {vuln.manualTry}
-      </p>
-      {runnable.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-3">
-          {runnable.map((poc) => (
-            <button
-              key={poc.id}
-              type="button"
-              disabled={running != null}
-              onClick={() => onRunPoc(poc)}
-              className="btn-secondary text-[11px] px-2.5 py-1 disabled:opacity-40"
+        <p className="text-xs text-ocean-700 mt-2 leading-relaxed">{vuln.whatsWrong}</p>
+      </button>
+
+      {selected && (
+        <div className="mt-4 pt-3 border-t border-ocean-100 space-y-3">
+          <p className="text-xs text-ocean-500">
+            <span className="font-medium text-ocean-600">In the shop: </span>
+            {vuln.shopperExperience}
+          </p>
+          <ol className="space-y-2">
+            {vuln.walkthrough.map((step, i) => (
+              <li key={i} className="flex gap-2 text-xs text-ocean-800 leading-relaxed">
+                <span className="font-mono text-ocean-400 shrink-0 w-5">{i + 1}.</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="text-xs text-ocean-500">
+            <span className="font-medium text-ocean-700">Look for: </span>
+            {vuln.lookFor}
+          </p>
+          {vuln.openPath && (
+            <Link
+              href={vuln.openPath}
+              className="inline-flex btn-primary text-[11px] px-3 py-1.5"
+              target="_blank"
+              rel="noreferrer"
             >
-              {running === poc.id ? "Running…" : `Auto-run: ${poc.title}`}
-            </button>
-          ))}
+              Open {vuln.openPath} →
+            </Link>
+          )}
         </div>
       )}
     </article>
@@ -78,21 +85,17 @@ function VulnCard({
 }
 
 export default function ShopVulnMap({
-  pocById,
-  onRunPoc,
-  running,
+  selectedId,
+  onSelect,
 }: {
-  pocById: Map<string, SecurityPoc>;
-  onRunPoc: (poc: SecurityPoc) => void;
-  running: string | null;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }) {
   return (
     <div className="space-y-8">
       <p className="text-sm text-ocean-600 leading-relaxed">
-        Like DVWA, but you can actually buy a board. Every storefront area has an intentional
-        weakness — shoppers use the normal site; this map shows what is wrong where. Use{" "}
-        <strong className="font-medium text-ocean-800">Attack stories</strong> below to auto-run
-        full chains.
+        Pick one weakness, open the shop page, walk the steps, then wait for Upwind before the next
+        item. No auto-run — detections should come from real storefront traffic only.
       </p>
 
       {SHOP_AREAS.map((area) => {
@@ -117,9 +120,8 @@ export default function ShopVulnMap({
                 <VulnCard
                   key={vuln.id}
                   vuln={vuln}
-                  pocById={pocById}
-                  onRunPoc={onRunPoc}
-                  running={running}
+                  selected={selectedId === vuln.id}
+                  onSelect={() => onSelect(vuln.id === selectedId ? "" : vuln.id)}
                 />
               ))}
             </div>

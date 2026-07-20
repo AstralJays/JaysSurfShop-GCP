@@ -1,25 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import ShopVulnMap from "@/components/ShopVulnMap";
 import {
-  FEATURED_STORY_GROUPS,
+  FEATURED_WALKTHROUGHS,
   SHOP_VULNERABILITIES,
+  vulnById,
 } from "@/lib/shopVulnerabilities";
-import {
-  POC_CATEGORIES,
-  SECURITY_POCS,
-  getOrderedStories,
-  getStoriesForCategory,
-  isPocBlocked,
-  type PocCategory,
-  type PocStory,
-  type SecurityPoc,
-  type StoryKind,
-} from "@/lib/securityPocs";
-import { fireShopTraffic, shopTrafficSucceeded } from "@/lib/shopTraffic";
-import { fireReact2ShellExploit } from "@/lib/react2shellExploit";
 
 interface PostureData {
   application: string;
@@ -74,187 +62,16 @@ function Severity({ level }: { level: string }) {
   return <span className={`text-xs font-medium ${colors[level] || "text-ocean-600"}`}>{level}</span>;
 }
 
-function kindLabel(kind: StoryKind, storyIndex?: 1 | 2): string {
-  if (kind === "story" && storyIndex) return `Story ${storyIndex}`;
-  if (kind === "follow-on") return "Follow-on";
-  return "Extra";
-}
-
-function ChainStep({
-  poc,
-  step,
-  totalSteps,
-  blocked,
-  running,
-  chainBusy,
-  result,
-  onRun,
-}: {
-  poc: SecurityPoc;
-  step: number;
-  totalSteps: number;
-  blocked: boolean;
-  running: boolean;
-  chainBusy: boolean;
-  result?: { ok: boolean; data: unknown };
-  onRun: () => void;
-}) {
-  return (
-    <div className="flex items-start gap-3 py-3 border-b border-ocean-100 last:border-0">
-      <span className="text-[11px] font-mono text-ocean-400 w-8 shrink-0 pt-0.5">
-        {step}/{totalSteps}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <p className="font-medium text-ocean-900 text-sm">{poc.title}</p>
-          <span className="text-[11px] font-mono text-ocean-400">{poc.cve}</span>
-        </div>
-        <p className="text-sm text-ocean-600 mt-0.5">{poc.outcome}</p>
-        {blocked && (
-          <p className="text-xs text-ocean-400 mt-1">Unavailable in this environment.</p>
-        )}
-        {result && (
-          <pre className="mt-2 text-xs font-mono bg-ocean-50 rounded-md p-2.5 overflow-x-auto max-h-32 overflow-y-auto">
-            {JSON.stringify(result.data, null, 2)}
-          </pre>
-        )}
-      </div>
-      <button
-        type="button"
-        disabled={blocked || running || chainBusy}
-        onClick={onRun}
-        className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-40 shrink-0"
-      >
-        {running ? "Running…" : "Run"}
-      </button>
-    </div>
-  );
-}
-
-function AttackChain({
-  story,
-  pocById,
-  findings,
-  running,
-  chainId,
-  chainStatus,
-  results,
-  onRun,
-  onRunChain,
-  onContinue,
-}: {
-  story: PocStory;
-  pocById: Map<string, SecurityPoc>;
-  findings: PostureData["findings"];
-  running: string | null;
-  chainId: string | null;
-  chainStatus: string | null;
-  results: Record<string, { ok: boolean; data: unknown }>;
-  onRun: (poc: SecurityPoc) => void;
-  onRunChain: (story: PocStory) => void;
-  onContinue?: (tab: PocCategory) => void;
-}) {
-  const thisChainRunning = chainId === story.id;
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (thisChainRunning) setOpen(true);
-  }, [thisChainRunning]);
-  const storyPocs = story.pocIds
-    .map((id) => pocById.get(id))
-    .filter((poc): poc is SecurityPoc => poc != null);
-  const runnableCount = storyPocs.filter((poc) => !isPocBlocked(poc, findings)).length;
-  const busy = running != null || chainId != null;
-
-  return (
-    <section className="border-b border-ocean-100 py-6 last:border-0">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ocean-500">
-              {kindLabel(story.kind, story.storyIndex)}
-            </span>
-            <span className="text-[10px] font-mono text-ocean-400">{story.targetResource}</span>
-          </div>
-          <h3 className="font-display text-xl font-bold text-ocean-900">{story.title}</h3>
-          <p className="text-sm text-ocean-700 mt-2 leading-relaxed">{story.blurb}</p>
-          <p className="text-xs text-ocean-500 mt-2">
-            <span className="font-medium text-ocean-600">Look for: </span>
-            {story.lookFor}
-          </p>
-          {thisChainRunning && chainStatus && (
-            <p className="text-xs font-medium text-teal-700 mt-2">{chainStatus}</p>
-          )}
-        </div>
-        <button
-          type="button"
-          disabled={busy || runnableCount === 0}
-          onClick={() => onRunChain(story)}
-          className="btn-primary text-xs px-4 py-2 disabled:opacity-40 shrink-0"
-        >
-          {thisChainRunning ? "Running…" : `Run story (${runnableCount})`}
-        </button>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="text-xs font-medium text-ocean-600 hover:text-ocean-900"
-        >
-          {open ? "Hide steps" : `Show ${story.pocIds.length} steps`}
-        </button>
-        {story.continueIn && onContinue && (
-          <button
-            type="button"
-            onClick={() => onContinue(story.continueIn!.tab)}
-            className="text-xs text-teal-700 font-medium hover:underline"
-          >
-            {story.continueIn.label} →
-          </button>
-        )}
-      </div>
-
-      {open && (
-        <div className="mt-3 pl-0 sm:pl-1">
-          {story.pocIds.map((pocId, index) => {
-            const poc = pocById.get(pocId);
-            if (!poc) return null;
-            return (
-              <ChainStep
-                key={poc.id}
-                poc={poc}
-                step={index + 1}
-                totalSteps={story.pocIds.length}
-                blocked={isPocBlocked(poc, findings)}
-                running={running === poc.id}
-                chainBusy={busy}
-                result={results[poc.id]}
-                onRun={() => onRun(poc)}
-              />
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
-
-type LabView = "map" | "stories" | "posture";
+type LabView = "walkthrough" | "guides" | "posture";
 
 export default function SecurityPage() {
   const [posture, setPosture] = useState<PostureData | null>(null);
-  const [results, setResults] = useState<Record<string, { ok: boolean; data: unknown }>>({});
-  const [running, setRunning] = useState<string | null>(null);
-  const [chainId, setChainId] = useState<string | null>(null);
-  const [chainStatus, setChainStatus] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<PocCategory>("ai");
-  const [labView, setLabView] = useState<LabView>("map");
-  const [showDetails, setShowDetails] = useState(false);
-
-  const pocById = useMemo(
-    () => new Map(SECURITY_POCS.map((poc) => [poc.id, poc])),
-    []
+  const [labView, setLabView] = useState<LabView>("walkthrough");
+  const [selectedId, setSelectedId] = useState<string | null>(
+    SHOP_VULNERABILITIES[0]?.id ?? null
   );
+  const [guideId, setGuideId] = useState(FEATURED_WALKTHROUGHS[0]?.id ?? "container");
+  const [showDetails, setShowDetails] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/security/posture");
@@ -265,146 +82,10 @@ export default function SecurityPage() {
     load();
   }, [load]);
 
-  async function runPoC(poc: SecurityPoc, options?: { keepBusy?: boolean }): Promise<boolean> {
-    setRunning(poc.id);
-    try {
-      // Real CVE-2025-55182 Flight RCE against public / (no /api/security/demo harness)
-      if (poc.id === "react2shell") {
-        let shopTraffic: unknown[] | undefined;
-        if (poc.shopTraffic?.length) {
-          shopTraffic = await fireShopTraffic(poc.shopTraffic);
-        }
-        const exploit = await fireReact2ShellExploit("/");
-        setResults((prev) => ({
-          ...prev,
-          [poc.id]: {
-            ok: exploit.exploited,
-            data: {
-              ...exploit,
-              shop_traffic: shopTraffic,
-              via: "rsc-flight-exploit",
-            },
-          },
-        }));
-        return exploit.exploited;
-      }
-
-      if (!poc.shopTrafficOnly || !poc.shopTraffic?.length) {
-        setResults((prev) => ({
-          ...prev,
-          [poc.id]: {
-            ok: false,
-            data: {
-              error:
-                "PoC must use shopTrafficOnly with public storefront paths (external visitor traffic).",
-            },
-          },
-        }));
-        return false;
-      }
-
-      const shopTraffic = await fireShopTraffic(poc.shopTraffic);
-      const ok = shopTrafficSucceeded(shopTraffic);
-      const last = shopTraffic[shopTraffic.length - 1] ?? null;
-      const failed = shopTraffic.filter((s) => !s.ok);
-      setResults((prev) => ({
-        ...prev,
-        [poc.id]: {
-          ok,
-          data: {
-            exploited: ok,
-            via: "external-visitor-shop-traffic",
-            shop_traffic: shopTraffic,
-            ...(failed.length
-              ? {
-                  failed_steps: failed.map((s) => ({
-                    label: s.label,
-                    path: s.path,
-                    status: s.status,
-                  })),
-                }
-              : {}),
-            ...(last && typeof last === "object" && last !== null && "data" in last
-              ? { result: (last as { data: unknown }).data }
-              : {}),
-            ...(ok
-              ? {}
-              : {
-                  error:
-                    "One or more storefront requests failed — Upwind will not see a successful exploit. Expand details for HTTP status codes.",
-                }),
-          },
-        },
-      }));
-      return ok;
-    } catch (err) {
-      setResults((prev) => ({
-        ...prev,
-        [poc.id]: { ok: false, data: { error: err instanceof Error ? err.message : "Failed" } },
-      }));
-      return false;
-    } finally {
-      if (!options?.keepBusy) setRunning(null);
-    }
-  }
-
-  async function sleepWithStatus(totalMs: number, label: string) {
-    const started = Date.now();
-    while (Date.now() - started < totalMs) {
-      const left = Math.max(0, Math.ceil((totalMs - (Date.now() - started)) / 1000));
-      setChainStatus(`${label} · next step in ${left}s`);
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-  }
-
-  async function runChain(story: PocStory) {
-    if (!posture || chainId) return;
-    const steps = story.pocIds
-      .map((id) => pocById.get(id))
-      .filter((poc): poc is SecurityPoc => poc != null && !isPocBlocked(poc, posture.findings));
-    if (steps.length === 0) return;
-
-    // Give runtime sensors time to ingest between real process bursts.
-    const gapMs = Math.max(8000, (story.stepGapSeconds ?? 8) * 1000);
-    setChainId(story.id);
-    let completed = 0;
-    try {
-      for (let i = 0; i < steps.length; i++) {
-        const poc = steps[i];
-        setChainStatus(`Step ${i + 1}/${steps.length} · ${poc.title}`);
-        const ok = await runPoC(poc, { keepBusy: true });
-        setRunning(null);
-        completed = i + 1;
-        if (!ok) {
-          setChainStatus(`Stopped · step ${i + 1} failed (see details)`);
-          break;
-        }
-        if (i < steps.length - 1 && gapMs > 0) {
-          await sleepWithStatus(gapMs, `Step ${i + 1}/${steps.length} done`);
-        }
-      }
-      if (completed === steps.length) {
-        setChainStatus(`Done · ${steps.length}/${steps.length} steps`);
-      }
-    } finally {
-      setRunning(null);
-      setChainId(null);
-      window.setTimeout(() => setChainStatus(null), 4000);
-    }
-  }
-
-  function continueToTab(tab: PocCategory) {
-    setLabView("stories");
-    setActiveTab(tab);
-    window.setTimeout(() => {
-      document.getElementById("attack-chains")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
-  }
-
   if (!posture) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center text-ocean-500">
-        Loading presenter tools…
+        Loading walkthrough…
       </div>
     );
   }
@@ -412,13 +93,13 @@ export default function SecurityPage() {
   const { findings } = posture;
   const activeCspm = findings.cspm_misconfigurations.filter((m) => m.active);
   const activeIam = findings.iam_misconfigurations.filter((m) => m.active && m.severity !== "Info");
-  const activeCategory = POC_CATEGORIES.find((c) => c.id === activeTab)!;
-  const orderedStories = getOrderedStories();
   const shopVulnCount = SHOP_VULNERABILITIES.length;
+  const activeGuide =
+    FEATURED_WALKTHROUGHS.find((g) => g.id === guideId) ?? FEATURED_WALKTHROUGHS[0];
 
   const labViews: Array<{ id: LabView; label: string }> = [
-    { id: "map", label: "Shop vulnerability map" },
-    { id: "stories", label: "Attack stories" },
+    { id: "walkthrough", label: "Walkthrough" },
+    { id: "guides", label: "Suggested order" },
     { id: "posture", label: "Cloud posture" },
   ];
 
@@ -426,15 +107,15 @@ export default function SecurityPage() {
     <div className="mx-auto max-w-4xl px-4 py-10">
       <header className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-widest text-teal-700">
-          Presenter remote
+          Presenter checklist
         </p>
         <h1 className="font-display text-3xl font-bold text-ocean-900 mt-1">
-          Attack story runner
+          Manual walkthroughs
         </h1>
         <p className="mt-3 text-ocean-600 leading-relaxed max-w-2xl">
-          Not part of the storefront. This page only drives the same public shop paths a visitor
-          would hit by browsing Create-A-Board, Guides, Maya, checkout, and login — so detectors
-          see normal customer traffic.
+          Auto PoCs muddied detections. Use this page as a checklist only — open each shop feature,
+          walk one item at a time, then wait for Upwind before the next. No requests are fired from
+          here.
         </p>
         <p className="mt-3 text-sm text-ocean-500">
           <span className="font-medium text-ocean-700">{posture.compute}</span>
@@ -462,47 +143,48 @@ export default function SecurityPage() {
         ))}
       </div>
 
-      {labView === "map" && (
+      {labView === "walkthrough" && (
         <section className="mb-10">
           <div className="flex flex-wrap gap-6 mb-6 pb-4 border-b border-ocean-100">
             <div>
-              <p className="text-2xl font-display font-bold text-ocean-900">
-                {shopVulnCount}
-              </p>
-              <p className="text-xs text-ocean-500 mt-0.5">Shop weaknesses</p>
+              <p className="text-2xl font-display font-bold text-ocean-900">{shopVulnCount}</p>
+              <p className="text-xs text-ocean-500 mt-0.5">Items to walk</p>
             </div>
             <div>
-              <p className="text-2xl font-display font-bold text-ocean-900">8</p>
-              <p className="text-xs text-ocean-500 mt-0.5">Storefront areas</p>
+              <p className="text-2xl font-display font-bold text-ocean-900">1</p>
+              <p className="text-xs text-ocean-500 mt-0.5">At a time</p>
             </div>
             <div>
-              <p className="text-2xl font-display font-bold text-ocean-900">{orderedStories.length}</p>
-              <p className="text-xs text-ocean-500 mt-0.5">Auto-run stories</p>
+              <p className="text-2xl font-display font-bold text-ocean-900">0</p>
+              <p className="text-xs text-ocean-500 mt-0.5">Auto-run requests</p>
             </div>
           </div>
-          <ShopVulnMap pocById={pocById} onRunPoc={runPoC} running={running} />
+          <ShopVulnMap
+            selectedId={selectedId}
+            onSelect={(id) => setSelectedId(id || null)}
+          />
         </section>
       )}
 
-      {labView === "stories" && (
-        <section id="attack-chains" className="mb-10">
-          <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Attack stories</h2>
+      {labView === "guides" && (
+        <section className="mb-10">
+          <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Suggested order</h2>
           <p className="text-sm text-ocean-600 mb-6">
-            Four headline chains — container CVEs, Cloud Functions & storefront CVEs, AI hijack, and
-            Cloud XDR — plus OWASP LLM and OWASP API Top 10 bundles. Every step is external visitor
-            HTTP to the public site (no internal service shortcuts).
+            Grouped sequences for a demo. Still manual — expand an item, follow steps in the shop,
+            pause between groups so Process / AI / Cloud findings do not collide.
           </p>
 
           <div className="grid sm:grid-cols-2 gap-3 mb-8">
-            {FEATURED_STORY_GROUPS.map((group) => (
+            {FEATURED_WALKTHROUGHS.map((group) => (
               <button
                 key={group.id}
                 type="button"
-                onClick={() => {
-                  setActiveTab(group.id);
-                  document.getElementById("story-list")?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="text-left rounded-xl border border-ocean-100 bg-ocean-50/50 p-4 hover:border-ocean-200 transition"
+                onClick={() => setGuideId(group.id)}
+                className={`text-left rounded-xl border p-4 transition ${
+                  guideId === group.id
+                    ? "border-ocean-400 bg-ocean-50"
+                    : "border-ocean-100 bg-ocean-50/50 hover:border-ocean-200"
+                }`}
               >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-ocean-500">
                   {group.label}
@@ -513,42 +195,48 @@ export default function SecurityPage() {
             ))}
           </div>
 
-          <div id="story-list" className="flex flex-wrap gap-1 border-b border-ocean-100 mb-2">
-            {POC_CATEGORIES.map((cat) => {
-              const active = activeTab === cat.id;
+          <div className="space-y-4">
+            {activeGuide.vulnIds.map((id, index) => {
+              const vuln = vulnById(id);
+              if (!vuln) return null;
               return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setActiveTab(cat.id)}
-                  className={`px-3 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                    active
-                      ? "border-ocean-900 text-ocean-900"
-                      : "border-transparent text-ocean-500 hover:text-ocean-800"
-                  }`}
+                <article
+                  key={id}
+                  className="rounded-xl border border-ocean-100 bg-white p-5"
                 >
-                  {cat.label}
-                </button>
+                  <div className="flex flex-wrap items-baseline gap-2 mb-2">
+                    <span className="text-[11px] font-mono text-ocean-400">
+                      {index + 1}/{activeGuide.vulnIds.length}
+                    </span>
+                    <h3 className="font-medium text-ocean-900">{vuln.title}</h3>
+                    <span className="text-[10px] font-mono text-ocean-500">{vuln.tag}</span>
+                  </div>
+                  <ol className="space-y-2 mb-3">
+                    {vuln.walkthrough.map((step, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-ocean-700 leading-relaxed">
+                        <span className="font-mono text-ocean-400 shrink-0">{i + 1}.</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="text-xs text-ocean-500 mb-3">
+                    <span className="font-medium text-ocean-700">Look for: </span>
+                    {vuln.lookFor}
+                  </p>
+                  {vuln.openPath && (
+                    <Link
+                      href={vuln.openPath}
+                      className="btn-secondary text-xs px-3 py-1.5"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open {vuln.openPath} →
+                    </Link>
+                  )}
+                </article>
               );
             })}
           </div>
-          <p className="text-xs text-ocean-500 mb-2 mt-3">{activeCategory.blurb}</p>
-
-          {getStoriesForCategory(activeTab).map((story) => (
-            <AttackChain
-              key={story.id}
-              story={story}
-              pocById={pocById}
-              findings={findings}
-              running={running}
-              chainId={chainId}
-              chainStatus={chainStatus}
-              results={results}
-              onRun={runPoC}
-              onRunChain={runChain}
-              onContinue={continueToTab}
-            />
-          ))}
         </section>
       )}
 
@@ -556,8 +244,7 @@ export default function SecurityPage() {
         <section className="mb-10">
           <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Cloud posture</h2>
           <p className="text-sm text-ocean-600 mb-5">
-            CSPM, IAM, and CVE findings your scanners should already see — before you run any
-            stories.
+            CSPM, IAM, and CVE findings scanners should already see — before any walkthrough.
           </p>
 
           <div className="flex items-end justify-between gap-4 border-b border-ocean-100 pb-4 mb-5">

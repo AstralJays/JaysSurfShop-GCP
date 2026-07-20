@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyChat } from "@/lib/demoLab";
+import { proxyChat } from "@/lib/chatProxy";
 
 /**
  * Create-A-Board — deck art preview / validation.

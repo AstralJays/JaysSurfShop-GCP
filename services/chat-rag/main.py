@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from audit_log import audit_ai_inference, audit_event
-from demo_exploits import register_legacy_routes, register_shop_routes
+from demo_exploits import register_shop_routes
 from chat_service import run_tool_chat
 from embeddings import get_embedding_function
 from llm_provider import (
@@ -21,14 +21,11 @@ from llm_provider import (
     provider_name,
 )
 from orders import ORDER_TOOLS, list_orders_for_email, orders_backend
-from owasp_llm import create_owasp_router
-from users import authenticate, create_user, get_user, list_demo_accounts, list_users, users_backend
+from users import authenticate, create_user, get_user, list_users, users_backend
 
 load_dotenv()
 
 app = FastAPI(title="Jay's Surf Shop — Chat RAG", version="1.0.0")
-# Shop-shaped sinks only — no /demo/exploit mount (PoCs hit /catalog/preview, /legacy/download, /chat, …)
-register_legacy_routes(app)
 register_shop_routes(app)
 
 app.add_middleware(
@@ -205,20 +202,6 @@ def _run_chat_with_tools(
     return run_tool_chat(messages, session_email=session_email)
 
 
-app.include_router(
-    create_owasp_router(
-        get_collection=get_collection,
-        ensure_indexed=ensure_indexed,
-        chroma_client=chroma_client,
-        collection_name=COLLECTION_NAME,
-        get_system_prompt=lambda: SYSTEM_PROMPT,
-        llm_configured=is_configured,
-        chat_model=chat_model(),
-    )
-)
-
-
-
 @app.on_event("startup")
 def startup():
     if not is_configured():
@@ -264,12 +247,6 @@ def health():
             or os.getenv("GCP_PROJECT")
         ),
     }
-
-
-@app.get("/auth/demo-accounts")
-def auth_demo_accounts():
-    """Workshop login page — emails + demo passwords (intentional exposure)."""
-    return {"accounts": list_demo_accounts(), "backend": users_backend()}
 
 
 @app.post("/auth/login")
@@ -347,7 +324,6 @@ def chat(req: ChatRequest):
 
 
 @app.post("/admin/knowledge/rebuild")
-@app.post("/reindex")  # deprecated alias
 def admin_knowledge_rebuild():
     """Staff knowledge rebuild — intentionally unauthenticated (broken function auth)."""
     if not is_configured():

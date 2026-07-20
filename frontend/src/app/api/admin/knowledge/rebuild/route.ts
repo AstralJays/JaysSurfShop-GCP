@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { proxyChat } from "@/lib/demoLab";
+import { proxyChat } from "@/lib/chatProxy";
 
 /** Staff: rebuild Maya product knowledge (intentionally weak auth on backend). */
 export async function POST() {

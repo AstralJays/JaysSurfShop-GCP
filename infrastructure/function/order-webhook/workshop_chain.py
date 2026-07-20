@@ -408,7 +408,7 @@ def run_checkout_chain(manifest: str) -> dict[str, Any]:
         "presenter_notes": {
             "tracer_signals": "Process (id, sh, cp, cat, curl, xmrig), File (EICAR, markers), API (POST /checkout), DNS (miner pools)",
             "audit_epilogue": "Correlate GCS ListBuckets in Cloud Audit Logs after step 7",
-            "demo_trigger": "POST /api/security/demo/order-yaml-checkout",
+            "demo_trigger": "POST /api/checkout with fulfillmentManifest",
         },
         "upwind_policies": [
             "API custom rules — poisoned checkout",

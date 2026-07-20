@@ -1,3 +1,5 @@
+/** Proxy helpers to chat-rag (internal cluster URL). */
+
 export const CHAT_SERVICE_URL =
   process.env.CHAT_SERVICE_URL || "http://chat-rag:8001";
 

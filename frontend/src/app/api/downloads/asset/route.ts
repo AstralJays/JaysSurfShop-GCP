@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { proxyChat } from "@/lib/demoLab";
+import { proxyChat } from "@/lib/chatProxy";
 
 /** Shop document download (invoices, wax guides, care sheets). */
 export async function GET(request: Request) {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { proxyChat } from "@/lib/demoLab";
+import { proxyChat } from "@/lib/chatProxy";
 
 /** Customer community tip — may be quoted by Maya. */
 export async function POST(request: Request) {

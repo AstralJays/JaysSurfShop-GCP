@@ -13,8 +13,8 @@ const HELP_LINKS = [
   { href: "/orders", label: "Orders" },
   { href: "/chat", label: "Chat with Maya" },
   { href: "/design", label: "Create-A-Board" },
+  { href: "/guides", label: "Guides & tips" },
   { href: "/about", label: "Our Story" },
-  { href: "/security", label: "Security Workshop" },
 ];
 
 export default function Footer() {

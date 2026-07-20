@@ -82,13 +82,8 @@ export async function fireShopTraffic(
 
 export function shopTrafficSucceeded(results: ShopTrafficResult[]): boolean {
   if (results.length === 0) return false;
-  return results.every((row) => {
-    if (!row.ok) return false;
-    if (row.data && typeof row.data === "object" && row.data !== null && "exploited" in row.data) {
-      return (row.data as { exploited?: unknown }).exploited === true;
-    }
-    return true;
-  });
+  // Shop APIs return normal business JSON — success is HTTP ok, not exploit flags.
+  return results.every((row) => row.ok);
 }
 
 export const TRAVERSAL_FILE = "../confidential/api-credentials.txt";

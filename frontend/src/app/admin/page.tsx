@@ -28,12 +28,33 @@ export default function AdminPage() {
     role: "customer",
   });
 
+  const [rebuildBusy, setRebuildBusy] = useState(false);
+  const [rebuildMsg, setRebuildMsg] = useState("");
+
   useEffect(() => {
     fetch("/api/auth/me")
       .then(async (res) => (res.ok ? (await res.json()).user : null))
       .then((u) => setMe(u))
       .catch(() => setMe(null));
   }, []);
+
+  async function rebuildKnowledge() {
+    setRebuildBusy(true);
+    setRebuildMsg("");
+    try {
+      const res = await fetch("/api/admin/knowledge/rebuild", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setRebuildMsg(data.detail || "Rebuild failed");
+        return;
+      }
+      setRebuildMsg("Maya’s product knowledge rebuilt.");
+    } catch {
+      setRebuildMsg("Knowledge service unavailable");
+    } finally {
+      setRebuildBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!me || me.role !== "admin") return;
@@ -80,9 +101,7 @@ export default function AdminPage() {
       <p className="text-xs uppercase tracking-widest text-ocean-500 mb-2">Staff only</p>
       <h1 className="font-display text-3xl font-bold text-ocean-900">Ops console</h1>
       <p className="mt-3 text-ocean-700 leading-relaxed text-sm">
-        This page is gated by Next.js middleware checking the{" "}
-        <code className="text-sm bg-ocean-50 px-1 rounded">jss_staff_session</code> cookie
-        (CVE-2025-29927 bypassable). User management below requires a real admin login at{" "}
+        Manage shop accounts and rebuild Maya&apos;s knowledge base. Sign in as staff at{" "}
         <Link href="/login" className="font-semibold underline">
           /login
         </Link>
@@ -93,9 +112,7 @@ export default function AdminPage() {
         <section className="mt-10 space-y-6">
           <div>
             <h2 className="font-display text-xl font-bold text-ocean-900">Users</h2>
-            <p className="text-sm text-ocean-600 mt-1">
-              DynamoDB / local users table — demo passwords shown for the workshop.
-            </p>
+            <p className="text-sm text-ocean-600 mt-1">Shop user accounts.</p>
           </div>
 
           {error && (
@@ -111,7 +128,7 @@ export default function AdminPage() {
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">Email</th>
                   <th className="px-3 py-2 font-medium">Role</th>
-                  <th className="px-3 py-2 font-medium">Demo password</th>
+                  <th className="px-3 py-2 font-medium">Password</th>
                 </tr>
               </thead>
               <tbody>
@@ -186,11 +203,19 @@ export default function AdminPage() {
       )}
 
       <div className="mt-10 space-y-3 rounded-lg border border-ocean-200 bg-ocean-50/50 p-5 text-sm text-ocean-800">
-        <p className="font-semibold text-ocean-900">Middleware bypass probe</p>
-        <pre className="overflow-x-auto rounded-lg bg-ocean-950 text-ocean-100 text-xs p-4">
-{`curl -si "$ORIGIN/admin" \\
-  -H "x-middleware-subrequest: src/middleware:src/middleware:src/middleware:src/middleware:src/middleware"`}
-        </pre>
+        <p className="font-semibold text-ocean-900">Maya knowledge base</p>
+        <p className="text-ocean-600">
+          Rebuild product embeddings after catalog changes so chat answers stay current.
+        </p>
+        <button
+          type="button"
+          className="btn-primary text-sm"
+          disabled={rebuildBusy}
+          onClick={rebuildKnowledge}
+        >
+          {rebuildBusy ? "Rebuilding…" : "Rebuild knowledge"}
+        </button>
+        {rebuildMsg && <p className="text-sm text-ocean-700">{rebuildMsg}</p>}
       </div>
 
       <Link href="/" className="mt-8 inline-block text-ocean-700 underline underline-offset-2">

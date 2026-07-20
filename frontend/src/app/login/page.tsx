@@ -94,10 +94,10 @@ function LoginForm() {
       </form>
 
       {accounts.length > 0 && (
-        <div className="mt-10 rounded-xl border border-dashed border-ocean-200 p-4 text-sm">
-          <p className="font-medium text-ocean-900">Workshop demo accounts</p>
+        <div className="mt-10 rounded-xl border border-ocean-200 p-4 text-sm">
+          <p className="font-medium text-ocean-900">Default accounts</p>
           <p className="text-ocean-600 text-xs mt-1 mb-3">
-            Click a row to fill the form — passwords live in the users table (intentional lab exposure).
+            Click a row to fill the form.
           </p>
           <ul className="space-y-2">
             {accounts.map((a) => (
@@ -112,7 +112,7 @@ function LoginForm() {
                     {a.role}
                   </span>
                   <div className="font-mono text-xs text-ocean-600 mt-0.5">
-                    {a.email} · {a.demo_password}
+                    {a.email} / {a.demo_password}
                   </div>
                 </button>
               </li>
@@ -122,11 +122,11 @@ function LoginForm() {
       )}
 
       <p className="mt-8 text-sm text-ocean-600">
-        Staff middleware demo still at{" "}
-        <Link href="/staff-login" className="font-semibold text-ocean-700 hover:underline">
-          /staff-login
-        </Link>{" "}
-        (CVE-2025-29927).
+        Need help?{" "}
+        <Link href="/chat" className="font-semibold text-ocean-700 hover:underline">
+          Chat with Maya
+        </Link>
+        .
       </p>
     </div>
   );

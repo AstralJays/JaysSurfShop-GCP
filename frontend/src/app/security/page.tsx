@@ -404,7 +404,7 @@ export default function SecurityPage() {
   if (!posture) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center text-ocean-500">
-        Loading security workshop…
+        Loading presenter tools…
       </div>
     );
   }
@@ -426,19 +426,15 @@ export default function SecurityPage() {
     <div className="mx-auto max-w-4xl px-4 py-10">
       <header className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-widest text-teal-700">
-          Security workshop
+          Presenter remote
         </p>
         <h1 className="font-display text-3xl font-bold text-ocean-900 mt-1">
-          Jay&apos;s Surf Shop — vulnerable on purpose
+          Attack story runner
         </h1>
         <p className="mt-3 text-ocean-600 leading-relaxed max-w-2xl">
-          A real-looking surf store where every area has something misconfigured. Shoppers buy
-          boards, design customs, and chat with Maya. This lab auto-runs attack stories so your
-          tooling sees the same HTTP as a shopper — <code>/api/chat</code>,{" "}
-          <code>/api/checkout</code>, <code>/api/board/preview</code>,{" "}
-          <code>/api/downloads/asset</code>, <code>/api/auth/login</code>. No{" "}
-          <code>/api/security/demo/*</code> attack APIs.
-          detections have live signals.
+          Not part of the storefront. This page only drives the same public shop paths a visitor
+          would hit by browsing Create-A-Board, Guides, Maya, checkout, and login — so detectors
+          see normal customer traffic.
         </p>
         <p className="mt-3 text-sm text-ocean-500">
           <span className="font-medium text-ocean-700">{posture.compute}</span>

@@ -48,7 +48,26 @@ export default function DesignPage() {
     setError("");
     setResult(null);
 
+    const notes = styleNotes || `${boardName} custom deck`;
+    const designId = `${boardType}-${pattern}`.replace(/\s+/g, "-").toLowerCase();
+
     try {
+      // Deck preview runs on the design service (same path shoppers hit — intentionally unsafe).
+      const previewRes = await fetch("/api/board/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ design: designId, style_notes: notes }),
+      });
+      const previewData = await previewRes.json().catch(() => ({}));
+      if (!previewRes.ok) {
+        setError(
+          typeof previewData.detail === "string"
+            ? previewData.detail
+            : "Deck preview failed"
+        );
+        return;
+      }
+
       const res = await fetch("/api/board", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -57,7 +76,7 @@ export default function DesignPage() {
           primary_color: primaryColor,
           secondary_color: secondaryColor,
           pattern,
-          style_notes: styleNotes || `${boardName} custom deck`,
+          style_notes: notes,
           length,
         }),
       });
@@ -69,7 +88,7 @@ export default function DesignPage() {
       }
       setResult(data);
     } catch {
-      setError("Could not reach the board generator. Is it running on port 8002?");
+      setError("Could not reach the board services. Try again in a moment.");
     } finally {
       setLoading(false);
     }

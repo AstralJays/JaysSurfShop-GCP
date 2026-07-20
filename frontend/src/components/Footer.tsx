@@ -9,6 +9,7 @@ const SHOP_LINKS = [
 ];
 
 const HELP_LINKS = [
+  { href: "/labs", label: "OWASP labs" },
   { href: "/login", label: "Sign in" },
   { href: "/orders", label: "Orders" },
   { href: "/chat", label: "Chat with Maya" },

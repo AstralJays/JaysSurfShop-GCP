@@ -222,6 +222,30 @@ def options():
     }
 
 
+@app.get("/designs")
+def list_designs():
+    """
+    Workshop misconfig: lists every generated custom board with no auth or ownership check.
+    Lets anyone browse other shoppers' Create-A-Board art (CWE-639 / API1 BOLA).
+    """
+    designs: list[dict[str, str]] = []
+    for path in sorted(GENERATED_DIR.glob("*.png")):
+        design_id = path.stem
+        designs.append(
+            {
+                "design_id": design_id,
+                "image_url": f"/images/{design_id}",
+                "filename": path.name,
+            }
+        )
+    audit_event("design_gallery_list", count=len(designs), cross_customer=True)
+    return {
+        "count": len(designs),
+        "designs": designs,
+        "warning": "Workshop: unauthenticated listing of all custom board designs",
+    }
+
+
 @app.get("/images/{design_id}")
 def get_image(design_id: str):
     path = GENERATED_DIR / f"{design_id}.png"

@@ -196,6 +196,10 @@ resource "google_cloud_run_v2_service" "frontend" {
         value = module.workshop.order_webhook_url
       }
       env {
+        name  = "DEMO_PUBLIC_EXPORT_URL"
+        value = module.workshop.demo_public_blob_url
+      }
+      env {
         name  = "NEXT_PUBLIC_APP_ENV"
         value = var.environment
       }

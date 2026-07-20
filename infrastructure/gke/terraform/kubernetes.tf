@@ -10,6 +10,7 @@ locals {
       { name = "CHAT_SERVICE_URL", value = local.internal_service_urls.chat-rag },
       { name = "BOARD_SERVICE_URL", value = local.internal_service_urls.board-generator },
       { name = "ORDER_WEBHOOK_URL", value = module.workshop.order_webhook_url },
+      { name = "DEMO_PUBLIC_EXPORT_URL", value = module.workshop.demo_public_blob_url },
       { name = "NEXT_PUBLIC_APP_ENV", value = var.environment },
     ]
     chat-rag = [

@@ -118,3 +118,17 @@ export const MIDDLEWARE_BYPASS_HEADER = {
   "x-middleware-subrequest":
     "src/middleware:src/middleware:src/middleware:src/middleware:src/middleware",
 };
+
+/** Benign checkout body for API Top 10 (no YAML poison). */
+export const NORMAL_CHECKOUT_BODY = {
+  items: [
+    {
+      id: "wax-tropical",
+      name: "Tropical Surf Wax",
+      price: 8,
+      quantity: 1,
+    },
+  ],
+  subtotal: 8,
+  customerEmail: "attacker@example.com",
+};

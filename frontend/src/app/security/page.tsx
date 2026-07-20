@@ -489,8 +489,9 @@ export default function SecurityPage() {
         <section id="attack-chains" className="mb-10">
           <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">Attack stories</h2>
           <p className="text-sm text-ocean-600 mb-6">
-            Four headline chains — container CVEs, Lambda CVEs, AI hijack, and Cloud XDR — plus an
-            OWASP LLM bundle. Each story runs real commands and API calls.
+            Four headline chains — container CVEs, Cloud Functions & storefront CVEs, AI hijack, and
+            Cloud XDR — plus OWASP LLM and OWASP API Top 10 bundles. Each story runs real commands
+            and API calls.
           </p>
 
           <div className="grid sm:grid-cols-2 gap-3 mb-8">

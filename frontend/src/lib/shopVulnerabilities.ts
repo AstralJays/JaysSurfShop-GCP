@@ -112,7 +112,8 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     shopperExperience: "Catalog looks normal; data leak is in cloud storage.",
     manualTry: "curl the public GCS customer-export URL from posture findings.",
     lookFor: "Public GCS · sensitive data exposure · CSPM",
-    storyIds: ["identity-to-data"],
+    pocIds: ["api8-misconfig"],
+    storyIds: ["identity-to-data", "api-top-10"],
   },
   {
     id: "design-prompt-injection",
@@ -138,7 +139,8 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     shopperExperience: "Your custom art is visible to anyone who knows the API.",
     manualTry: "Generate a board, then GET /api/board?designs=1",
     lookFor: "Unauthenticated API · broken object-level auth",
-    pocIds: ["design-gallery-leak"],
+    pocIds: ["api3-excess-data"],
+    storyIds: ["api-top-10"],
   },
   {
     id: "design-unauth-spend",
@@ -164,6 +166,8 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     shopperExperience: "Normal checkout works; attackers can also hit the webhook directly.",
     manualTry: "POST to ORDER_WEBHOOK_URL/checkout from curl.",
     lookFor: "Public API Gateway · Cloud Audit Logs checkout events",
+    pocIds: ["api6-business-flow"],
+    storyIds: ["api-top-10"],
   },
   {
     id: "cart-yaml-deser",
@@ -176,8 +180,8 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     shopperExperience: "Hidden field in poisoned checkout — not in normal cart UI.",
     manualTry: "Run the “Frontend RCE → serverless checkout” story or order-yaml-checkout PoC.",
     lookFor: "Cloud Functions deserialization · PyYAML CVE · process spawn",
-    pocIds: ["order-yaml-checkout"],
-    storyIds: ["story-2-frontend-rce"],
+    pocIds: ["order-yaml-checkout", "api10-unsafe-consumption"],
+    storyIds: ["story-2-frontend-rce", "api-top-10"],
   },
   {
     id: "orders-bola",
@@ -190,6 +194,8 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     shopperExperience: "Orders page looks scoped; bypass by calling API with another email.",
     manualTry: "GET chat-rag:8001/orders/mine?email=sam.rivera@example.com",
     lookFor: "Broken object-level authorization",
+    pocIds: ["api1-bola-orders"],
+    storyIds: ["api-top-10"],
   },
   {
     id: "account-weak-session",
@@ -202,6 +208,8 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     shopperExperience: "Sign in normally; attacker can craft cookie for any email.",
     manualTry: "Decode cookie at /login, change email field, re-encode base64url.",
     lookFor: "Authentication bypass · weak session",
+    pocIds: ["api2-broken-auth"],
+    storyIds: ["api-top-10"],
   },
   {
     id: "account-demo-creds",
@@ -214,6 +222,8 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     shopperExperience: "Login page lists Jordan, Sam, and admin demo accounts.",
     manualTry: "Open /login — credentials are shown for the workshop.",
     lookFor: "Credential disclosure · hardcoded accounts",
+    pocIds: ["api2-broken-auth"],
+    storyIds: ["api-top-10"],
   },
   {
     id: "maya-order-hijack",
@@ -284,6 +294,8 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     shopperExperience: "Frontend gates admin; backend API is open on the internal network.",
     manualTry: "POST chat-rag:8001/admin/users directly from inside the VPC.",
     lookFor: "Missing authentication · lateral movement",
+    pocIds: ["api5-function-auth"],
+    storyIds: ["api-top-10"],
   },
   {
     id: "platform-pillow-rce",
@@ -369,6 +381,13 @@ export const FEATURED_STORY_GROUPS: Array<{
     headline: "Maya & the order hijack",
     description:
       "Business-logic vulns in the support agent — cross-customer disclosure and shipping redirects via Vertex tools.",
+  },
+  {
+    id: "api",
+    label: "API stories",
+    headline: "OWASP API Top 10",
+    description:
+      "BOLA, broken auth, excess data, unbounded APIs, misconfig, and unsafe YAML — real /api/* storefront paths.",
   },
   {
     id: "container",

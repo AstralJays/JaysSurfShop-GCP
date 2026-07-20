@@ -431,10 +431,10 @@ export default function SecurityPage() {
         <p className="mt-3 text-ocean-600 leading-relaxed max-w-2xl">
           A real-looking surf store where every area has something misconfigured. Shoppers buy
           boards, design customs, and chat with Maya. This lab auto-runs attack stories so your
-          tooling sees the same HTTP as a shopper — <code>/api/chat</code>, <code>/api/checkout</code>,
-          <code>/api/catalog/preview</code>, <code>/api/legacy/download</code>,{" "}
-          <code>/api/chat</code>, <code>/api/checkout</code> — real shop sinks, not{" "}
-          <code>/api/security/demo/*</code>.
+          tooling sees the same HTTP as a shopper visiting the public site —{" "}
+          <code>/api/chat</code>, <code>/api/checkout</code>, <code>/api/catalog/preview</code>,{" "}
+          <code>/api/legacy/download</code>, <code>/api/auth/login</code> — real edge traffic, not
+          internal service URLs or <code>/api/security/demo/*</code>.
           detections have live signals.
         </p>
         <p className="mt-3 text-sm text-ocean-500">

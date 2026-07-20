@@ -19,7 +19,8 @@ export async function POST(request: Request) {
     const user = data.user as ShopUser;
     const response = NextResponse.json({ user });
     response.cookies.set(USER_COOKIE, encodeSession(user), {
-      httpOnly: true,
+      // Workshop: intentionally not httpOnly so visitors can forge/tamper the cookie.
+      httpOnly: false,
       path: "/",
       sameSite: "lax",
       maxAge: 60 * 60 * 8,

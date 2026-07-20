@@ -1,13 +1,25 @@
-/** Browser-visible shop traffic for /security PoCs (TraditionalJay-style). */
+/** Browser-visible shop traffic for /security PoCs (TraditionalJay-style).
+ * Every step is what an external visitor would send to the public storefront —
+ * same-origin /api/* and HTML routes, or absolute public URLs (e.g. GCS).
+ */
+
+import { setBrowserSession, type ShopUser } from "@/lib/userSession";
 
 export type ShopTrafficStep = {
   method: "GET" | "POST";
-  /** Same-origin path the browser hits — must look like storefront/API traffic. */
+  /** Same-origin path (/api/..., /admin) or absolute public URL (https://...). */
   path: string;
   headers?: Record<string, string>;
   body?: unknown;
   /** Short label for result JSON. */
   label?: string;
+  /** Defaults to include for same-origin; omit for cross-origin public buckets. */
+  credentials?: RequestCredentials;
+  /**
+   * Optional: tamper the unsigned session cookie in the browser before the
+   * request (visitor DevTools-style). Not a server forge endpoint.
+   */
+  setSession?: ShopUser;
 };
 
 export type ShopTrafficResult = {
@@ -24,9 +36,13 @@ export async function fireShopTraffic(
 ): Promise<ShopTrafficResult[]> {
   const out: ShopTrafficResult[] = [];
   for (const step of steps) {
+    if (step.setSession) {
+      setBrowserSession(step.setSession);
+    }
+    const absolute = /^https?:\/\//i.test(step.path);
     const init: RequestInit = {
       method: step.method,
-      credentials: "same-origin",
+      credentials: step.credentials ?? (absolute ? "omit" : "same-origin"),
       headers: {
         Accept: "application/json, text/html;q=0.9,*/*;q=0.8",
         ...(step.body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -132,3 +148,22 @@ export const NORMAL_CHECKOUT_BODY = {
   subtotal: 8,
   customerEmail: "attacker@example.com",
 };
+
+/** Demo shopper accounts — same credentials the /login page exposes. */
+export const DEMO_LOGIN_JORDAN = {
+  email: "jordan.lee@example.com",
+  password: "jordanwaves",
+};
+
+export const DEMO_LOGIN_ADMIN = {
+  email: "admin@jayssurfshop.example",
+  password: "staffadmin",
+};
+
+/**
+ * Public customer export (GCS allUsers). Prefer NEXT_PUBLIC_ so the browser
+ * hits the bucket directly like an internet visitor — not an app proxy.
+ */
+export const PUBLIC_CUSTOMER_EXPORT_URL =
+  process.env.NEXT_PUBLIC_DEMO_PUBLIC_EXPORT_URL ||
+  "https://storage.googleapis.com/jayssurfshopdemo-public-oenf/exports/customer-export.json";

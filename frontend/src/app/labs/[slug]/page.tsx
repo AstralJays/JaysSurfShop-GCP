@@ -64,6 +64,22 @@ export default async function LabPage({
               <span className="text-[11px] font-mono font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
                 {lab.ref}
               </span>
+              <span
+                className={`text-[11px] font-semibold px-2 py-0.5 rounded ${
+                  lab.runtime === "cloud-run"
+                    ? "bg-violet-100 text-violet-900"
+                    : lab.runtime === "gke"
+                      ? "bg-amber-100 text-amber-900"
+                      : "bg-ocean-100 text-ocean-800"
+                }`}
+              >
+                {lab.runtime === "cloud-run"
+                  ? "Cloud Run"
+                  : lab.runtime === "gke"
+                    ? "GKE"
+                    : "GCP"}
+              </span>
+              <span className="text-[11px] text-ocean-500">{lab.workload}</span>
               <span className="text-[11px] text-ocean-500">{lab.severity}</span>
             </div>
             <h1 className="font-display text-3xl font-bold text-ocean-900 mt-2">{lab.title}</h1>

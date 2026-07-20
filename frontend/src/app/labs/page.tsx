@@ -14,9 +14,10 @@ export default function LabsIndexPage() {
         </p>
         <h1 className="font-display text-3xl font-bold text-ocean-900 mt-1">OWASP labs</h1>
         <p className="mt-3 text-ocean-600 leading-relaxed max-w-2xl">
-          Like DVWA: pick one lab, exercise it once, wait for detections, then move on. CVEs are
-          individual labs — not auto-chained stories. The storefront stays real; these pages are
-          the teaching surface.
+          Like DVWA: pick one lab, exercise it once, wait for detections. Labs are tagged by where
+          they run — <span className="font-medium text-amber-800">GKE</span> (cluster nodes) vs{" "}
+          <span className="font-medium text-violet-800">Cloud Run</span> (order-webhook) — so you
+          know which Upwind workload to open.
         </p>
         <p className="mt-2 text-sm text-ocean-500">{OWASP_LABS.length} labs · one at a time</p>
       </header>
@@ -39,9 +40,25 @@ export default function LabsIndexPage() {
                         <span className="text-[10px] font-mono font-semibold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded">
                           {lab.ref}
                         </span>
+                        <span
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                            lab.runtime === "cloud-run"
+                              ? "bg-violet-100 text-violet-900"
+                              : lab.runtime === "gke"
+                                ? "bg-amber-100 text-amber-900"
+                                : "bg-ocean-100 text-ocean-800"
+                          }`}
+                        >
+                          {lab.runtime === "cloud-run"
+                            ? "Cloud Run"
+                            : lab.runtime === "gke"
+                              ? "GKE"
+                              : "GCP"}
+                        </span>
                         <span className="text-[10px] text-ocean-500">{lab.severity}</span>
                       </div>
                       <p className="font-medium text-ocean-900 mt-2 text-sm">{lab.title}</p>
+                      <p className="text-[10px] text-ocean-500 mt-0.5">{lab.workload}</p>
                       <p className="text-xs text-ocean-600 mt-1 leading-relaxed line-clamp-2">
                         {lab.summary}
                       </p>

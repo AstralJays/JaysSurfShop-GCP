@@ -347,6 +347,9 @@ function CheckoutYamlLab() {
   const { busy, result, error, run } = useLabAction();
   return (
     <div className="space-y-3">
+      <p className="text-xs text-ocean-600">
+        Executes on <strong>Cloud Run</strong> (<code>order-webhook</code>), not GKE nodes.
+      </p>
       <p className="text-xs font-mono text-ocean-600 break-all">
         fulfillmentManifest: {YAML_CHECKOUT_BODY.fulfillmentManifest}
       </p>
@@ -654,6 +657,59 @@ function SsrfFetchLab() {
   );
 }
 
+function CloudRunShellLab() {
+  const { busy, result, error, run } = useLabAction();
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ocean-600">
+        Hits <code className="text-xs">order-webhook</code> on <strong>Cloud Run</strong> — not a
+        GKE pod. Runs <code className="text-xs">id | tee</code> for Shell Process Redirect.
+      </p>
+      <button
+        type="button"
+        disabled={busy}
+        className="btn-primary text-sm"
+        onClick={() =>
+          run(async () => {
+            const res = await fetch("/api/fulfillment/carrier-check", { method: "POST" });
+            return { status: res.status, body: await res.json() };
+          })
+        }
+      >
+        {busy ? "Checking…" : "Run carrier check once"}
+      </button>
+      {error && <p className="text-sm text-coral-700">{error}</p>}
+      <Result data={result} />
+    </div>
+  );
+}
+
+function CloudRunAvLab() {
+  const { busy, result, error, run } = useLabAction();
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ocean-600">
+        Writes EICAR under <code className="text-xs">/tmp</code> inside the Cloud Run revision.
+      </p>
+      <button
+        type="button"
+        disabled={busy}
+        className="btn-primary text-sm"
+        onClick={() =>
+          run(async () => {
+            const res = await fetch("/api/fulfillment/av-sample", { method: "POST" });
+            return { status: res.status, body: await res.json() };
+          })
+        }
+      >
+        {busy ? "Writing…" : "Attach AV sample once"}
+      </button>
+      {error && <p className="text-sm text-coral-700">{error}</p>}
+      <Result data={result} />
+    </div>
+  );
+}
+
 export default function LabInteractionPanel({
   interaction,
 }: {
@@ -681,6 +737,10 @@ export default function LabInteractionPanel({
       return <KnowledgeRebuildLab />;
     case "checkout-yaml":
       return <CheckoutYamlLab />;
+    case "cloudrun-shell":
+      return <CloudRunShellLab />;
+    case "cloudrun-av":
+      return <CloudRunAvLab />;
     case "designs-list":
       return <DesignsListLab />;
     case "public-gcs":

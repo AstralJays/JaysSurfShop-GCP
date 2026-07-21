@@ -32,6 +32,9 @@ resource "google_cloud_run_v2_service" "order_webhook" {
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
+  # Allow terraform destroy for solo sandbox teardown.
+  deletion_protection = false
+
   template {
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     service_account       = google_service_account.order_webhook.email

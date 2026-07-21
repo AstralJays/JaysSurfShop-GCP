@@ -29,6 +29,9 @@ resource "google_container_cluster" "main" {
   project  = var.project_id
   location = var.region
 
+  # Allow terraform destroy for solo sandbox teardown.
+  deletion_protection = false
+
   remove_default_node_pool = true
   initial_node_count       = 1
 
